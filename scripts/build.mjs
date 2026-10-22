@@ -7,10 +7,13 @@
  * Se usa esbuild directamente (es el compilador que Vite usa internamente).
  */
 import { build } from 'esbuild';
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
 const mode = process.argv[2] === 'artifact' ? 'artifact' : 'web';
 const root = new URL('..', import.meta.url).pathname;
+// Recalcular la red cartográfica antes de empaquetar para evitar datos obsoletos.
+execFileSync(process.execPath, ['--import', 'tsx', 'scripts/generate-geo.ts'], { cwd: root, stdio: 'inherit' });
 
 const globalsPlugin = {
   name: 'react-globals',

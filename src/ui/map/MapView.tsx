@@ -633,9 +633,8 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
         <g data-layer="units">
           {show('units') && stackItems.map(({ g, x, y }) => {
             const sel = g.units.some((u) => selIds.includes(u.id));
-            const training = g.units.every((u) => u.status === 'training');
             const fighting = g.units.some((u) => u.status === 'combat');
-            return tile(`${g.regionId}-${g.owner}`, x, y, g.owner, g.units, `${training ? ' training' : ''}${fighting ? ' fighting' : ''}`, { 'data-units': g.regionId }, sel, 'stack');
+            return tile(`${g.regionId}-${g.owner}`, x, y, g.owner, g.units, fighting ? ' fighting' : '', { 'data-units': g.regionId }, sel, 'stack');
           })}
           {show('units') && detail.units === 'region' && moving.map((u) => {
             const [x, y] = unitPos(u);

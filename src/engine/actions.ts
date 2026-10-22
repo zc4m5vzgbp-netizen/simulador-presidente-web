@@ -6,14 +6,15 @@
 import type { CountryId, GameState, PeaceTerms, Policy, ProposalKind } from './types';
 import { fail, type ActionResult } from './core';
 import { payDebt, setPolicy } from './economy';
-import { disband, moveUnit, recruit } from './military';
+import { disband, moveUnit, recruit, setAutoReplenish } from './military';
 import { cancelTrade, improveRelations, propose, respondProposal, sendAid, worsenRelations } from './diplomacy';
 import { declareWar } from './war';
 
 export type Action =
   | { type: 'setPolicy'; patch: Partial<Policy> }
   | { type: 'payDebt'; amount: number }
-  | { type: 'recruit'; regionId: string }
+  | { type: 'recruit'; regionId: string; count?: number }
+  | { type: 'setAutoReplenish'; enabled: boolean }
   | { type: 'disband'; unitId: string }
   | { type: 'move'; unitId: string; target: string }
   | { type: 'improveRelations'; target: CountryId }
@@ -30,7 +31,8 @@ export function perform(state: GameState, actor: CountryId, action: Action): Act
   switch (action.type) {
     case 'setPolicy': return setPolicy(state, actor, action.patch);
     case 'payDebt': return payDebt(state, actor, action.amount);
-    case 'recruit': return recruit(state, actor, action.regionId);
+    case 'recruit': return recruit(state, actor, action.regionId, action.count ?? 1);
+    case 'setAutoReplenish': return setAutoReplenish(state, actor, action.enabled);
     case 'disband': return disband(state, actor, action.unitId);
     case 'move': return moveUnit(state, actor, action.unitId, action.target);
     case 'improveRelations': return improveRelations(state, actor, action.target);

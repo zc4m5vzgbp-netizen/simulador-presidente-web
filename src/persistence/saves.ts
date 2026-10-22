@@ -2,6 +2,7 @@
 import type { CountryId, GameState } from '../engine/types';
 import { SAVE_VERSION } from '../engine/types';
 import { formatDate } from '../engine/core';
+import { migrateState } from '../engine/migrations';
 
 export interface SaveMeta {
   slot: string;
@@ -94,8 +95,9 @@ export async function saveGame(storage: StorageAdapter, state: GameState, slot: 
 export async function loadGame(storage: StorageAdapter, slot: string): Promise<GameState> {
   const r = await storage.get(slot);
   if (!r) throw new Error('No existe esa partida guardada.');
-  if (r.version !== SAVE_VERSION) throw new Error(`Versión de guardado incompatible (${r.version}).`);
-  const state = JSON.parse(r.data) as GameState;
-  if (!state.countries || !state.regions || !state.units) throw new Error('Guardado dañado.');
-  return state;
+  if (r.version > SAVE_VERSION) throw new Error(`Versión de guardado incompatible (${r.version}): es de una versión más reciente del juego.`);
+  const raw = JSON.parse(r.data);
+  if (!raw || !raw.countries || !raw.regions || !raw.units) throw new Error('Guardado dañado.');
+  // Partidas de versiones anteriores: se actualizan en memoria; la ranura no se reescribe hasta guardar.
+  return migrateState({ ...raw, version: raw.version ?? r.version }).state;
 }

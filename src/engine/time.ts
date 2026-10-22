@@ -5,21 +5,22 @@
  */
 import type { GameState } from './types';
 import { HOURS_PER_DAY, monthIndex } from './core';
-import { hourlyMovement, dailyMilitary } from './military';
+import { hourlyMovement, dailyMilitary, dailyReplenishment } from './military';
 import { hourlyCombat, hourlyOccupation } from './war';
 import { dailyEconomy, monthlyClose } from './economy';
 import { expireProposals, monthlyDiplomacy } from './diplomacy';
 import { hourlyAI } from './ai';
 
-/** Un día de juego = 60 s reales a velocidad normal. */
-export const REAL_MS_PER_DAY = 60_000;
+/** Un día de juego = 5 minutos reales a ×1 (MIL-153 C). */
+export const REAL_MS_PER_DAY = 300_000;
 export const REAL_MS_PER_HOUR = REAL_MS_PER_DAY / HOURS_PER_DAY;
 
+/** Pausa, ×1, ×2 y ×4 (MIL-154 B). */
 export const SPEEDS = [
   { id: 0, label: 'Pausa', multiplier: 0 },
-  { id: 1, label: 'Normal', multiplier: 1 },
-  { id: 2, label: 'Rápida', multiplier: 10 },
-  { id: 3, label: 'Muy rápida', multiplier: 60 },
+  { id: 1, label: 'Velocidad ×1', multiplier: 1 },
+  { id: 2, label: 'Velocidad ×2', multiplier: 2 },
+  { id: 3, label: 'Velocidad ×4', multiplier: 4 },
 ] as const;
 
 export type SpeedId = (typeof SPEEDS)[number]['id'];
@@ -35,6 +36,7 @@ export function stepHour(state: GameState): void {
   if (state.hour % HOURS_PER_DAY === 0) {
     dailyEconomy(state);
     dailyMilitary(state);
+    dailyReplenishment(state);
     expireProposals(state);
   }
   if (monthIndex(state.hour) !== prevMonth) {
@@ -62,11 +64,14 @@ export class GameClock {
 
   constructor(private maxHoursPerTick = 48) {}
 
-  /** Devuelve las horas a simular tras `realMs` milisegundos reales. */
-  tick(realMs: number): number {
+  /**
+   * Devuelve las horas a simular tras `realMs` milisegundos reales.
+   * `testScale` solo lo usan las pruebas automatizadas para no esperar minutos reales.
+   */
+  tick(realMs: number, testScale = 1): number {
     const mult = SPEEDS[this.speed].multiplier;
     if (mult === 0) { this.accumulator = 0; return 0; }
-    this.accumulator += Math.min(realMs, 1000) * mult;
+    this.accumulator += Math.min(realMs, 1000) * mult * testScale;
     // Pequeño margen para que el redondeo de coma flotante no pierda horas.
     const hours = Math.floor((this.accumulator + 1e-6) / REAL_MS_PER_HOUR);
     const allowed = Math.min(hours, this.maxHoursPerTick);

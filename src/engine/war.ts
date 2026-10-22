@@ -124,7 +124,7 @@ export function warAssessment(state: GameState, c: CountryId) {
 export function hourlyCombat(state: GameState): void {
   const byRegion: Record<string, Unit[]> = {};
   for (const u of Object.values(state.units)) {
-    if (u.status === 'training' || u.status === 'retreating') continue;
+    if (u.status === 'retreating') continue;
     (byRegion[u.regionId] ??= []).push(u);
   }
   for (const regionId of Object.keys(state.regions)) {
@@ -195,9 +195,9 @@ function endBattle(state: GameState, regionId: string, remaining: Unit[]): void 
 export function hourlyOccupation(state: GameState): void {
   for (const r of Object.values(state.regions)) {
     const units = unitsIn(state, r.id).filter((u) => u.status !== 'retreating');
-    const stationed = units.filter((u) => u.status !== 'training' && u.path.length === 0);
+    const stationed = units.filter((u) => u.path.length === 0);
     const hostile = stationed.filter((u) => atWar(state, u.owner, r.controller));
-    const defenders = units.filter((u) => u.status !== 'training' && (u.owner === r.controller || sameSide(state, u.owner, r.controller)));
+    const defenders = units.filter((u) => u.owner === r.controller || sameSide(state, u.owner, r.controller));
     if (!hostile.length || defenders.length) {
       r.occupationHours = 0;
       r.occupier = null;
@@ -211,16 +211,7 @@ export function hourlyOccupation(state: GameState): void {
     if (r.occupier !== taker) { r.occupier = taker; r.occupationHours = 0; }
     r.occupationHours += 1;
     const need = OCCUPATION_HOURS * (REGIONS[r.id].capital ? 2 : 1);
-    if (r.occupationHours >= need) {
-      // Las unidades en entrenamiento del antiguo controlador son capturadas.
-      for (const u of units) {
-        if (u.status === 'training' && atWar(state, u.owner, taker)) {
-          log(state, 'military', `El ${u.name} de ${countryName(u.owner)} es capturado durante su entrenamiento.`, [u.owner]);
-          delete state.units[u.id];
-        }
-      }
-      setController(state, r.id, taker);
-    }
+    if (r.occupationHours >= need) setController(state, r.id, taker);
   }
 }
 
@@ -276,6 +267,6 @@ export function relocateStrandedUnits(state: GameState): void {
     if (!home) { delete state.units[u.id]; continue; }
     u.regionId = home.id;
     u.path = []; u.destination = null; u.progress = 0;
-    if (u.status !== 'training') u.status = 'idle';
+    u.status = 'idle';
   }
 }

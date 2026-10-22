@@ -2,7 +2,7 @@ import type { CountryId } from '../data/regionDefs';
 export type { CountryId };
 
 /** Versión del formato de guardado. Incrementar al cambiar la forma del estado. */
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 export interface Policy {
   /** Impuestos: % del PIB recaudado. */
@@ -59,6 +59,10 @@ export interface CountryState {
   /** Ratio de abastecimiento militar (gasto militar / mantenimiento necesario). */
   supplyRatio: number;
   eliminated: boolean;
+  /** Reservas nacionales de equipo terrestre: modelo → unidades sin asignar (MIL-017). */
+  inventory: Record<string, number>;
+  /** Reposición automática de efectivos y equipo (pausable, MIL-019/038). */
+  autoReplenish: boolean;
 }
 
 export interface RegionState {
@@ -77,7 +81,7 @@ export interface RegionState {
   occupier: CountryId | null;
 }
 
-export type UnitStatus = 'idle' | 'moving' | 'combat' | 'training' | 'retreating';
+export type UnitStatus = 'idle' | 'moving' | 'combat' | 'retreating';
 
 export interface Unit {
   id: string;
@@ -97,8 +101,10 @@ export interface Unit {
   /** Progreso 0-1 hacia path[0]. */
   progress: number;
   status: UnitStatus;
-  /** Horas restantes de entrenamiento (status training). */
-  trainingHours: number;
+  /** Equipo asignado: modelo → cantidad (plantilla universal, MIL-001C/022–026). */
+  equipment: Record<string, number>;
+  /** Voluntarios ya reclutados (y pagados) que aún no se han incorporado (MIL-012). */
+  recruitPending: number;
 }
 
 export type WarSide = 'attackers' | 'defenders';

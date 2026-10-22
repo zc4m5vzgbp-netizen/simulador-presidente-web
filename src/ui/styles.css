@@ -737,3 +737,58 @@ table.stats { border-collapse: collapse; width: 100%; font-size: 0.84rem; }
   .speed button { min-width: 28px; padding: 0 4px; }
   .tb-btn { width: 34px; }
 }
+
+/* ---------------- MIL Fase 1: batallones, equipo e inventario ---------------- */
+.silhouette { color: #c9d3dc; flex: none; display: block; }
+.unit-meta .eta { color: var(--gold); }
+.unit-meta.recruiting { color: var(--good); }
+.equip-mini { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 0.78rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+.equip-mini .mini { display: inline-flex; align-items: center; gap: 3px; }
+.equip-mini .mini.empty { opacity: 0.35; }
+.equip-mini .silhouette { color: #aebccb; }
+
+.equip-grid { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 2px; }
+.equip-row { display: grid; grid-template-columns: 38px 1fr auto; grid-template-areas: "pic label count" "pic bar bar" "pic note note"; column-gap: 8px; align-items: center; padding: 5px 2px; border-bottom: 1px solid var(--glass-line, var(--line)); }
+.equip-row:last-child { border-bottom: 0; }
+.equip-row .silhouette { grid-area: pic; color: #d6dee6; }
+.equip-row.empty .silhouette, .equip-row.empty .equip-label { opacity: 0.45; }
+.equip-label { grid-area: label; font-size: 0.86rem; }
+.equip-count { grid-area: count; font-variant-numeric: tabular-nums; font-size: 0.92rem; }
+.equip-max { color: var(--dim); font-size: 0.78rem; }
+.equip-bar { grid-area: bar; display: flex; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.07); overflow: hidden; margin-top: 3px; }
+.equip-bar-active { background: var(--gold); }
+.equip-bar-idle { background: repeating-linear-gradient(90deg, var(--warn) 0 3px, transparent 3px 5px); }
+.equip-note { grid-area: note; font-size: 0.72rem; color: var(--warn); margin-top: 2px; }
+.unit-card.detail { cursor: default; gap: 6px; }
+.unit-models { display: flex; flex-wrap: wrap; gap: 4px; }
+.model-chip { font-size: 0.72rem; padding: 2px 7px; border-radius: 4px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-line, var(--line)); color: var(--muted); }
+.prov { font-style: normal; color: var(--warn); }
+.units-totals { display: grid; gap: 2px; }
+
+.recruit-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.recruit-row select { flex: 1 1 140px; min-height: 40px; }
+.stepper { display: inline-flex; align-items: center; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }
+.stepper button { min-width: 40px; min-height: 40px; border: 0; border-radius: 0; background: var(--surface-2); font-size: 1.1rem; }
+.stepper span { min-width: 30px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
+.switch { display: inline-flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--muted); min-height: 40px; cursor: pointer; }
+.switch input { width: 22px; height: 22px; accent-color: var(--gold); }
+.seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 9px; background: rgba(255, 255, 255, 0.05); margin-bottom: 8px; }
+.seg button { min-height: 36px; padding: 0 14px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font-weight: 600; }
+.seg button.on { background: var(--surface-3); color: var(--ink); }
+.inv-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.inv-table th { text-align: right; font-weight: 600; color: var(--dim); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 4px; }
+.inv-table th:first-child { text-align: left; }
+.inv-table td { padding: 5px 4px; border-top: 1px solid var(--line); }
+.inv-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.inv-model { display: flex; align-items: center; gap: 8px; }
+.notice.prov { border-left-color: var(--warn); margin-top: 8px; }
+.inv-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.inv-item { display: grid; grid-template-columns: 44px 1fr; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+.inv-item:first-child { border-top: 0; }
+.inv-main { min-width: 0; display: grid; gap: 2px; }
+.inv-name { font-weight: 600; font-size: 0.9rem; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.inv-id { color: var(--dim); font-weight: 500; font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+.prov-chip { color: var(--warn); border-color: rgba(213, 154, 58, 0.5); }
+.inv-figs { display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 0.82rem; color: var(--muted); }
+.inv-figs b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.inv-stats { font-size: 0.74rem; }

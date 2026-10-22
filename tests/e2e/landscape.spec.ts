@@ -1,11 +1,12 @@
 /** UI-001: orientación, selección, navegación, capas y compatibilidad. */
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { game, pinch, regionPoint, startGame } from './helpers';
+import { fastTime, game, pinch, regionPoint, startGame } from './helpers';
 
 test('En vertical aparece el aviso de giro, la partida se pausa y se recupera al volver a horizontal', async ({ page }) => {
   await startGame(page, 'ARG');
   const land = page.viewportSize()!;
+  await fastTime(page);
   await page.locator('[data-speed="2"]').tap();
   await expect.poll(() => game<number>(page, 's.hour'), { timeout: 10_000 }).toBeGreaterThan(0);
   await page.setViewportSize({ width: land.height, height: land.width });

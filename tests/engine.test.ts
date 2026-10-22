@@ -5,7 +5,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { createNewGame } from '../src/engine/setup';
-import { advanceDays, advanceHours, GameClock, REAL_MS_PER_DAY, stepHour } from '../src/engine/time';
+import { advanceDays, advanceHours, GameClock, REAL_MS_PER_DAY, SPEEDS, stepHour } from '../src/engine/time';
 import { formatDate } from '../src/engine/core';
 import { annualFlows, monthlyClose, totalReserves } from '../src/engine/economy';
 import { perform } from '../src/engine/actions';
@@ -51,20 +51,25 @@ describe('2. Calendario', () => {
     advanceDays(s, 31);
     assert.equal(formatDate(s.hour), '2 feb 2027');
   });
-  test('un día = 60 s reales a velocidad normal, independiente de los fotogramas', () => {
+  test('un día = 5 minutos reales a ×1, independiente de los fotogramas (MIL-153 C)', () => {
     const a = new GameClock(1e9); a.speed = 1;
     const b = new GameClock(1e9); b.speed = 1;
     let ha = 0, hb = 0;
-    for (let i = 0; i < 60; i++) ha += a.tick(1000);          // 60 fotogramas de 1 s
-    for (let i = 0; i < 3600; i++) hb += b.tick(1000 / 60);   // 3600 fotogramas de 16,7 ms
+    for (let i = 0; i < 300; i++) ha += a.tick(1000);          // 300 fotogramas de 1 s
+    for (let i = 0; i < 18000; i++) hb += b.tick(1000 / 60);   // 18 000 fotogramas de 16,7 ms
     assert.equal(ha, 24);
     assert.equal(hb, 24);
-    assert.equal(REAL_MS_PER_DAY, 60_000);
+    assert.equal(REAL_MS_PER_DAY, 300_000);
   });
-  test('la velocidad acelerada multiplica el avance', () => {
-    const c = new GameClock(1e9); c.speed = 2;
-    let h = 0; for (let i = 0; i < 60; i++) h += c.tick(100); // 6 s reales ×10
-    assert.equal(h, 24);
+  test('velocidades: pausa, ×1, ×2 y ×4 (MIL-154 B)', () => {
+    assert.deepEqual(SPEEDS.map((x) => x.multiplier), [0, 1, 2, 4]);
+    for (const [speed, secs] of [[2, 150], [3, 75]] as const) {
+      const c = new GameClock(1e9); c.speed = speed;
+      let h = 0; for (let i = 0; i < secs; i++) h += c.tick(1000);
+      assert.equal(h, 24, `velocidad ${speed}`);
+    }
+    const p = new GameClock(1e9); p.speed = 0;
+    assert.equal(p.tick(1000), 0);
   });
   test('el cierre mensual genera informe presupuestario', () => {
     const s = createNewGame('CHL', 1);
@@ -176,16 +181,15 @@ describe('6-7. Órdenes de movimiento y llegada', () => {
     const u = unitsOf(s, 'ARG')[0];
     assert.equal(perform(s, 'ARG', { type: 'move', unitId: u.id, target: 'UY' }).ok, false);
   });
-  test('reclutamiento cuesta dinero, requiere entrenamiento y luego es operativo', () => {
+  test('reclutamiento cuesta dinero y el batallón es operativo sin entrenamiento (MIL-018 A)', () => {
     const s = createNewGame('CHL', 1);
-    const n = unitsOf(s, 'CHL').length, r0 = s.countries.CHL.reserves;
+    const before = new Set(unitsOf(s, 'CHL').map((u) => u.id)), r0 = s.countries.CHL.reserves;
     assert.ok(perform(s, 'CHL', { type: 'recruit', regionId: 'CL_CE' }).ok);
-    const nu = unitsOf(s, 'CHL').find((u) => u.status === 'training')!;
-    assert.equal(unitsOf(s, 'CHL').length, n + 1);
+    const nu = unitsOf(s, 'CHL').find((u) => !before.has(u.id))!;
+    assert.equal(unitsOf(s, 'CHL').length, before.size + 1);
     assert.ok(s.countries.CHL.reserves < r0);
-    assert.equal(perform(s, 'CHL', { type: 'move', unitId: nu.id, target: 'CL_NO' }).ok, false);
-    advanceDays(s, 16);
-    assert.equal(s.units[nu.id].status, 'idle');
+    assert.equal(nu.status, 'idle');
+    assert.ok(perform(s, 'CHL', { type: 'move', unitId: nu.id, target: 'CL_NO' }).ok);
   });
 });
 
@@ -193,6 +197,8 @@ describe('8. Combate', () => {
   function battleScenario(seed: number) {
     const s = createNewGame('ARG', seed);
     for (const c of COUNTRY_IDS) s.ai[c].aggression = 0;
+    // Solo combate: sin reposición automática de bajas (MIL Fase 1) para medir las pérdidas.
+    s.countries.ARG.autoReplenish = false; s.countries.URY.autoReplenish = false;
     perform(s, 'ARG', { type: 'declareWar', target: 'URY' });
     stackIn(s, 'ARG', 'AR_NE');
     stackIn(s, 'URY', 'UY');

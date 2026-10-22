@@ -88,3 +88,11 @@ export async function pinch(page: Page, scale: number) {
     fire('pointerup', 2, cx + d1, cy);
   }, scale);
 }
+
+/**
+ * Acelera el reloj SOLO en las pruebas (1 día = 5 min reales a ×1 haría esperar minutos).
+ * No cambia reglas: el motor sigue simulando hora a hora.
+ */
+export async function fastTime(page: Page, scale = 200) {
+  await page.evaluate((k) => { (window as unknown as { __game: { timeScale: number } }).__game.timeScale = k; }, scale);
+}

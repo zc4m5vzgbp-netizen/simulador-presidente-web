@@ -32,7 +32,7 @@ export function GameScreen({ state }: { state: GameState }) {
   const me = state.player;
   const inbox = state.proposals.filter((p) => p.to === me).length;
   const orderIds = selection.kind === 'units' && selection.owner === me
-    ? selection.unitIds.filter((id) => { const u = state.units[id]; return u && u.status !== 'training' && u.status !== 'retreating'; })
+    ? selection.unitIds.filter((id) => { const u = state.units[id]; return u && u.status !== 'retreating'; })
     : [];
 
   function select(s: Selection) {

@@ -13,6 +13,7 @@ import { reliefTexture } from './texture';
 import { CROSSINGS, cityById, crossingById } from '../../geo';
 import { CitiesLayer, CrossingsLayer, RoadsLayer, cityIconBox, cityLabelCandidates, cityLabelItems, crossingIconBox, hitRadii, visibleCities, textWidth, clearTextWidths } from './GeoLayers';
 import mapData from '../../data/map.generated.json';
+import { clampView, clampW, type View } from './bounds';
 
 interface Props {
   state: GameState;
@@ -27,10 +28,28 @@ interface Props {
   onTapEmpty: () => void;
 }
 
-export interface View { x: number; y: number; w: number }
+export type { View };
 
-const MIN_W = 120;
-const MAX_W = MAP.width * 1.45;
+/** Desplazamiento máximo (px) para que un toque siga contando como toque y no como arrastre. */
+export const TAP_SLOP = 10;
+/** Un toque más largo que esto no selecciona (pulsación larga). */
+const TAP_MAX_MS = 700;
+/** Hueco reservado a la derecha para el tirador del panel (28 px + zona táctil ampliada). */
+const HANDLE_ROOM = 46;
+/** Ancho que necesita el menú de capas para leerse sin cortes. */
+const LAYER_MENU_MIN = 190;
+// Límites de zoom y de desplazamiento: ver ./bounds.ts
+
+/**
+ * Gesto táctil en curso.
+ * - pending: un dedo apoyado, aún dentro de TAP_SLOP (puede acabar en toque).
+ * - pan: arrastre con un dedo (nunca selecciona al soltar).
+ * - pinch: dos dedos; el punto del mapa bajo el centro del gesto sigue al centro de los dedos.
+ * `multi` marca que en algún momento hubo más de un dedo: ese gesto ya no puede ser un toque.
+ */
+type Gesture =
+  | { mode: 'pending' | 'pan'; startX: number; startY: number; t: number; multi: boolean }
+  | { mode: 'pinch'; d0: number; anchor: [number, number]; w0: number; multi: true };
 // Rótulos de mares: datos del mapa generado (no forman parte del motor).
 const SEA_LABELS = (mapData as unknown as { seaLabels?: { name: string; at: [number, number] }[] }).seaLabels ?? [];
 
@@ -136,7 +155,27 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
   const [texture] = useState(reliefTexture);
   const fitted = useRef(false);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
-  const gesture = useRef<{ startX: number; startY: number; moved: boolean; t: number; pinchDist?: number; pinchView?: View; pinchCenter?: [number, number] } | null>(null);
+  const gesture = useRef<Gesture | null>(null);
+  // Copias síncronas de la vista y el tamaño para los gestores de punteros:
+  // varios eventos pueden llegar antes de que React vuelva a dibujar.
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  const sizeRef = useRef(size);
+  sizeRef.current = size;
+  const aspect = () => sizeRef.current.h / sizeRef.current.w;
+  /** Única vía para cambiar el encuadre: aplica siempre los límites. */
+  const moveView = (next: View | ((v: View) => View)) =>
+    setView((v) => clampView(typeof next === 'function' ? next(v) : next, aspect()));
+
+  // Safari (iOS) lanza sus propios eventos de pellizco y puede ampliar la
+  // página entera aunque el mapa gestione el gesto: se anulan sobre el mapa.
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const stop = (e: Event) => e.preventDefault();
+    for (const t of ['gesturestart', 'gesturechange', 'gestureend']) el.addEventListener(t, stop, { passive: false });
+    return () => { for (const t of ['gesturestart', 'gesturechange', 'gestureend']) el.removeEventListener(t, stop); };
+  }, []);
 
   useEffect(() => {
     const el = svgRef.current;
@@ -165,36 +204,37 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
 
   // Gancho de pruebas y capturas: fijar la vista del mapa (no toca el motor).
   useEffect(() => {
-    (window as unknown as { __setView?: (v: View) => void }).__setView = (v) => setView({ ...v, w: Math.min(MAX_W, Math.max(MIN_W, v.w)) });
+    (window as unknown as { __setView?: (v: View) => void }).__setView = (v) => moveView(v);
   }, []);
 
   const h = view.w * (size.h / size.w);
   const k = view.w / size.w; // unidades de mapa por píxel de pantalla
 
-  function toMap(clientX: number, clientY: number): [number, number] {
+  function toMap(clientX: number, clientY: number, v: View = viewRef.current): [number, number] {
     const rect = svgRef.current!.getBoundingClientRect();
-    return [view.x + ((clientX - rect.left) / rect.width) * view.w, view.y + ((clientY - rect.top) / rect.height) * h];
+    return [v.x + ((clientX - rect.left) / rect.width) * v.w, v.y + ((clientY - rect.top) / rect.height) * v.w * (rect.height / rect.width)];
   }
 
-  function zoomAt(factor: number, mx: number, my: number, base: View = view): View {
-    const w = Math.min(MAX_W, Math.max(MIN_W, base.w * factor));
+  function zoomAt(factor: number, mx: number, my: number, base: View): View {
+    const w = clampW(base.w * factor);
     const f = w / base.w;
     return { x: mx - (mx - base.x) * f, y: my - (my - base.y) * f, w };
+  }
+
+  /** Inicia un pellizco con los dos primeros dedos apoyados. */
+  function startPinch() {
+    const [p, q] = [...pointers.current.values()];
+    const v = viewRef.current;
+    gesture.current = { mode: 'pinch', multi: true, d0: Math.max(Math.hypot(p.x - q.x, p.y - q.y), 1), anchor: toMap((p.x + q.x) / 2, (p.y + q.y) / 2, v), w0: v.w };
   }
 
   function onPointerDown(e: React.PointerEvent) {
     try { (e.currentTarget as Element).setPointerCapture?.(e.pointerId); } catch { /* puntero no capturable */ }
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.current.size === 1) {
-      gesture.current = { startX: e.clientX, startY: e.clientY, moved: false, t: performance.now() };
-    } else if (pointers.current.size === 2) {
-      const [p, q] = [...pointers.current.values()];
-      gesture.current = {
-        startX: 0, startY: 0, moved: true, t: 0,
-        pinchDist: Math.hypot(p.x - q.x, p.y - q.y),
-        pinchView: view,
-        pinchCenter: toMap((p.x + q.x) / 2, (p.y + q.y) / 2),
-      };
+      gesture.current = { mode: 'pending', startX: e.clientX, startY: e.clientY, t: performance.now(), multi: false };
+    } else {
+      startPinch();
     }
   }
 
@@ -204,25 +244,47 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const g = gesture.current;
     if (!g) return;
-    if (pointers.current.size >= 2 && g.pinchDist && g.pinchView && g.pinchCenter) {
+    if (g.mode === 'pinch') {
+      if (pointers.current.size < 2) return;
+      // Zoom centrado en el gesto: el punto del mapa que estaba bajo el centro
+      // de los dedos al empezar se mantiene bajo el centro actual (si los dedos
+      // se desplazan juntos, el mapa se desplaza con ellos).
       const [p, q] = [...pointers.current.values()];
-      const d = Math.hypot(p.x - q.x, p.y - q.y);
-      setView(zoomAt(g.pinchDist / Math.max(d, 1), g.pinchCenter[0], g.pinchCenter[1], g.pinchView));
+      const rect = svgRef.current!.getBoundingClientRect();
+      const w = clampW((g.w0 * g.d0) / Math.max(Math.hypot(p.x - q.x, p.y - q.y), 1));
+      const fx = ((p.x + q.x) / 2 - rect.left) / rect.width, fy = ((p.y + q.y) / 2 - rect.top) / rect.height;
+      moveView({ x: g.anchor[0] - fx * w, y: g.anchor[1] - fy * w * (rect.height / rect.width), w });
       return;
     }
-    if (Math.hypot(e.clientX - g.startX, e.clientY - g.startY) > 8) g.moved = true;
-    if (g.moved) {
-      const dx = (e.clientX - prev.x) * k, dy = (e.clientY - prev.y) * k;
-      setView((v) => ({ ...v, x: v.x - dx, y: v.y - dy }));
+    if (g.mode === 'pending') {
+      if (Math.hypot(e.clientX - g.startX, e.clientY - g.startY) <= TAP_SLOP) return;
+      // Supera el margen del toque: pasa a arrastre y el mapa alcanza al dedo.
+      g.mode = 'pan';
+      const dx = e.clientX - g.startX, dy = e.clientY - g.startY;
+      moveView((v) => { const kk = v.w / sizeRef.current.w; return { ...v, x: v.x - dx * kk, y: v.y - dy * kk }; });
+      return;
     }
+    const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+    moveView((v) => { const kk = v.w / sizeRef.current.w; return { ...v, x: v.x - dx * kk, y: v.y - dy * kk }; });
   }
 
-  function onPointerUp(e: React.PointerEvent) {
+  /** Fin (o cancelación) de un puntero. Devuelve true si el gesto completo fue un toque. */
+  function endPointer(e: React.PointerEvent): boolean {
     const g = gesture.current;
     const wasSingle = pointers.current.size === 1;
     pointers.current.delete(e.pointerId);
-    if (pointers.current.size === 0) gesture.current = null;
-    if (!g || !wasSingle || g.moved || performance.now() - g.t > 700) return;
+    const left = pointers.current.size;
+    if (left === 0) gesture.current = null;
+    else if (left === 1 && g?.mode === 'pinch') {
+      // De dos dedos a uno: se sigue arrastrando con el dedo que queda, sin saltos y sin seleccionar.
+      const [p] = [...pointers.current.values()];
+      gesture.current = { mode: 'pan', startX: p.x, startY: p.y, t: 0, multi: true };
+    } else if (left >= 2) startPinch();
+    return !!g && wasSingle && g.mode === 'pending' && !g.multi && performance.now() - g.t <= TAP_MAX_MS;
+  }
+
+  function onPointerUp(e: React.PointerEvent) {
+    if (!endPointer(e)) return;
     setLayerMenu(false);
     const target = document.elementFromPoint(e.clientX, e.clientY) as Element | null;
     const unitEl = target?.closest('[data-units]');
@@ -243,12 +305,18 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
 
   function onWheel(e: React.WheelEvent) {
     const [mx, my] = toMap(e.clientX, e.clientY);
-    setView(zoomAt(e.deltaY > 0 ? 1.15 : 1 / 1.15, mx, my));
+    moveView((v) => zoomAt(e.deltaY > 0 ? 1.15 : 1 / 1.15, mx, my, v));
   }
 
   function zoomButton(f: number) {
-    setView((v) => zoomAt(f, v.x + v.w / 2, v.y + (v.w * size.h / size.w) / 2, v));
+    moveView((v) => zoomAt(f, v.x + v.w / 2, v.y + (v.w * aspect()) / 2, v));
   }
+
+  // Menú de capas: si no cabe junto al minimapa (pantallas estrechas con el
+  // panel abierto), el minimapa se oculta mientras el menú está abierto.
+  const MINIMAP_ROOM = 110; // minimapa (≤104 px) + separación
+  const menuRoom = size.w - 8 - HANDLE_ROOM - 46 /* controles + separación */;
+  const showMinimap = minimap && !(layerMenu && menuRoom - MINIMAP_ROOM < LAYER_MENU_MIN);
 
   // ----- batallones agrupados por región y país -----
   const groups = new Map<string, { regionId: string; owner: CountryId; units: Unit[] }>();
@@ -301,12 +369,16 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
     return { r, x, y, box: { x0: x - w / 2, y0: y - 7 * k, x1: x + w / 2, y1: y + 7 * k } as Box };
   }), obstacles, k, placedLabels, undefined, true) : [];
 
+  /** Lado de la zona táctil de un marcador de lado `side` (unidades de mapa): ≥ 44 px de pantalla. */
+  const hitW = (side: number) => Math.max(side + 12 * k, 44 * k);
+
   function tile(key: string, x: number, y: number, owner: CountryId, count: number | null, extra: string, regionId: string, sel: boolean) {
     const rel = relationClass(state, owner);
     const w = count === null ? tH : tW;
     return (
       <g key={key} data-units={regionId} data-owner={owner} className={`stack ${rel}${sel ? ' sel' : ''}${extra}`} transform={`translate(${x - w / 2} ${y})`}>
-        <rect x={-6 * k} y={-6 * k} width={w + 12 * k} height={tH + 12 * k} fill="transparent" />
+        {/* Zona táctil: al menos 44 × 44 px de pantalla, centrada en el marcador. */}
+        <rect className="stack-hit" x={w / 2 - hitW(w) / 2} y={tH / 2 - hitW(tH) / 2} width={hitW(w)} height={hitW(tH)} fill="transparent" />
         <rect width={w} height={tH} rx={4 * k} className="stack-box" style={{ strokeWidth: (sel ? 2 : 1) * k }} />
         <g transform={`translate(${2 * k} ${2 * k}) scale(${(16 * k) / 24})`} className="stack-icon">
           <circle cx="12" cy="5.5" r="2.6" />
@@ -326,7 +398,7 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={(e) => { pointers.current.delete(e.pointerId); gesture.current = null; }}
+        onPointerCancel={(e) => { endPointer(e); /* el sistema canceló el gesto: nunca selecciona */ }}
         onWheel={onWheel}
         role="application"
         aria-label="Mapa estratégico de Sudamérica"
@@ -475,9 +547,9 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
         </g>
       </svg>
 
-      <div className="map-corner">
-        {minimap && (
-          <Minimap state={state} view={{ ...view }} viewH={h} onCenter={(cx, cy) => setView((v) => ({ ...v, x: cx - v.w / 2, y: cy - (v.w * size.h / size.w) / 2 }))} />
+      <div className="map-corner" style={{ right: HANDLE_ROOM }}>
+        {showMinimap && (
+          <Minimap state={state} view={{ ...view }} viewH={h} onCenter={(cx, cy) => moveView((v) => ({ ...v, x: cx - v.w / 2, y: cy - (v.w * aspect()) / 2 }))} />
         )}
         <div className="map-ctl" role="toolbar" aria-label="Controles del mapa">
           <button type="button" className={`icon-btn${minimap ? ' on' : ''}`} data-action="minimap" aria-pressed={minimap}
@@ -487,7 +559,7 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
           <button type="button" className={`icon-btn${layerMenu ? ' on' : ''}`} aria-label="Capas del mapa" aria-expanded={layerMenu} onClick={() => setLayerMenu((v) => !v)}><Icon name="layers" /></button>
           <button type="button" className="icon-btn" aria-label="Acercar" onClick={() => zoomButton(1 / 1.4)}><Icon name="plus" /></button>
           <button type="button" className="icon-btn" aria-label="Alejar" onClick={() => zoomButton(1.4)}><Icon name="minus" /></button>
-          <button type="button" className="icon-btn" aria-label="Centrar en tu país" onClick={() => setView(initialView(state.player, size.h / size.w, size.w))}><Icon name="target" /></button>
+          <button type="button" className="icon-btn" aria-label="Centrar en tu país" onClick={() => moveView(initialView(state.player, size.h / size.w, size.w))}><Icon name="target" /></button>
         </div>
         {layerMenu && (
           <div className="layer-menu" role="dialog" aria-label="Capas del mapa">

@@ -293,6 +293,8 @@ select { max-width: 100%; }
 .map-ctl { display: flex; flex-direction: column; gap: 4px; }
 .map-ctl .icon-btn { width: 40px; height: 40px; background: rgba(13, 24, 37, 0.92); border-color: var(--line-strong); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35); }
 .layer-menu {
+  /* Se encoge hasta el hueco libre de la esquina (que ya excluye el tirador del panel). */
+  flex: 0 1 230px; min-width: 0;
   width: 230px; max-height: calc(100vh - 140px); max-height: calc(100dvh - 140px); overflow-y: auto; align-self: flex-end;
   padding: 8px; border-radius: 10px; background: rgba(14, 24, 36, 0.97); border: 1px solid var(--line-strong); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
@@ -304,9 +306,11 @@ select { max-width: 100%; }
 .soon { margin-left: auto; color: var(--dim); }
 .layer-note { margin: 4px 4px 2px; font-size: 0.72rem; color: var(--dim); }
 
+/* Aviso de orden y avisos breves: centrados en la franja libre entre la
+   columna de controles del mapa (izquierda, 8 + 40 + 6 px) y el tirador del panel (derecha, 46 px). */
 .order-banner {
-  position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 5; max-width: calc(100% - 16px);
-  display: flex; gap: 10px; align-items: center;
+  position: absolute; top: 8px; left: 54px; right: 46px; margin-inline: auto; width: -webkit-fit-content; width: fit-content; z-index: 5;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 10px; align-items: center; /* en pantallas estrechas el botón pasa debajo */
   padding: 6px 6px 6px 14px; border-radius: 6px; background: var(--gold); color: var(--gold-ink); font-weight: 700;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
@@ -318,7 +322,10 @@ select { max-width: 100%; }
   box-shadow: -2px 0 10px rgba(0, 0, 0, 0.35);
 }
 .side-handle::before { content: ""; position: absolute; inset: -6px -4px -6px -14px; } /* zona táctil ampliada */
-.toasts { position: absolute; left: 50%; transform: translateX(-50%); top: 52px; z-index: 8; display: grid; gap: 6px; pointer-events: none; justify-items: center; width: min(440px, calc(100% - 20px)); }
+/* Con el panel contraído el mapa llega al borde de la pantalla: el tirador se
+   aparta de la isla dinámica / esquinas redondeadas del iPhone en horizontal. */
+.game-body.collapsed .side-handle { right: var(--safe-r); }
+.toasts { position: absolute; left: 54px; right: 46px; margin-inline: auto; max-width: 440px; top: 52px; z-index: 8; display: grid; gap: 6px; pointer-events: none; justify-items: center; }
 .toast { padding: 7px 12px; border-radius: 6px; background: var(--surface-3); border: 1px solid var(--line-strong); font-size: 0.86rem; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4); animation: toast-in 0.22s ease; }
 .toast.err { background: #3a1611; border-color: var(--bad); }
 @keyframes toast-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }

@@ -19,6 +19,7 @@ import { UnitCard } from '../panels/UnitCard';
 import { moneyShort as money, people, pct, signedPct, int, relationLabel } from '../format';
 import type { SectionId } from './NavRail';
 import { Icon, type IconName } from '../icons';
+import { CITY_KIND_LABEL, cityById, crossingById, formatLonLat } from '../../geo';
 
 interface Props {
   state: GameState;
@@ -310,17 +311,106 @@ function UnitsCard({ state, selection, setSelection, startOrder }: Omit<Props, '
   );
 }
 
+// ---------------- Tarjetas cartográficas (MAP-001) ----------------
+// Solo información geográfica documentada: sin estadísticas inventadas.
+
+function SourceLinks({ sources }: { sources: string[] }) {
+  return (
+    <ul className="src-list">
+      {sources.map((src) => (
+        <li key={src}>{/^https?:/.test(src)
+          ? <a href={src} target="_blank" rel="noopener noreferrer">{src.replace(/^https?:\/\/(www\.)?/, '').replace(/\/wiki\//, ' · ').replace(/_/g, ' ')}</a>
+          : src}</li>
+      ))}
+    </ul>
+  );
+}
+
+function CityCard({ cityId, setSelection }: { cityId: string; setSelection: Props['setSelection'] }) {
+  const city = cityById(cityId);
+  if (!city) return null;
+  return (
+    <section className="card geo-card city-card" aria-label={`Ciudad seleccionada: ${city.name}`}>
+      <header className="card-head small">
+        <h3><Icon name="city" size={15} /> Ciudad</h3>
+        <button type="button" className="icon-btn ghost-btn" aria-label="Quitar selección" onClick={() => setSelection({ kind: 'none' })}>
+          <Icon name="close" size={16} />
+        </button>
+      </header>
+      <div className="card-body">
+        <div className="rc-id">
+          <h2 className="rc-name">{city.name}</h2>
+          <button type="button" className="link-btn inline rc-owner" onClick={() => setSelection({ kind: 'country', country: city.country })}>
+            <FlagIcon c={city.country} size={20} /> {countryName(city.country)}
+          </button>
+          <span className={`chip ${city.kind === 'city' ? '' : 'ally'}`} data-testid="city-kind">{CITY_KIND_LABEL[city.kind]}</span>
+        </div>
+        {city.note && <p className="geo-note">{city.note}</p>}
+        {city.province && <Row label={city.provinceType ?? 'División'} value={city.province} />}
+        {city.region && REGIONS[city.region] && (
+          <Row label="Región del juego">
+            <button type="button" className="link-btn inline crow-value" onClick={() => setSelection({ kind: 'region', regionId: city.region! })}>{REGIONS[city.region].name} <Icon name="chevronRight" size={13} /></button>
+          </Row>
+        )}
+        <Row label="Coordenadas" value={formatLonLat(city.lonlat)} />
+        <div className="geo-src"><span className="crow-label">Fuente</span><SourceLinks sources={[city.source]} /></div>
+      </div>
+    </section>
+  );
+}
+
+function CrossingCard({ crossingId, setSelection }: { crossingId: string; setSelection: Props['setSelection'] }) {
+  const x = crossingById(crossingId);
+  if (!x) return null;
+  const fluvial = x.type === 'fluvial';
+  return (
+    <section className="card geo-card crossing-card" aria-label={`Paso fronterizo: ${x.name}`}>
+      <header className="card-head small">
+        <h3><Icon name={fluvial ? 'ferry' : 'crossing'} size={15} /> Paso fronterizo</h3>
+        <button type="button" className="icon-btn ghost-btn" aria-label="Quitar selección" onClick={() => setSelection({ kind: 'none' })}>
+          <Icon name="close" size={16} />
+        </button>
+      </header>
+      <div className="card-body">
+        <div className="rc-id">
+          <h2 className="rc-name">{x.name}</h2>
+          <span className={`chip ${fluvial ? 'fluvial' : 'land'}`} data-testid="crossing-type">{fluvial ? 'Fluvial' : 'Terrestre'}</span>
+        </div>
+        {x.detail && <p className="geo-note">{x.detail}</p>}
+        <div className="cross-ends">
+          {x.countries.map((c, i) => (
+            <button key={c} type="button" className="link-btn inline" onClick={() => setSelection({ kind: 'country', country: c })}>
+              <FlagIcon c={c} size={18} /> <span>{x.places[i]}<small className="muted"> · {countryName(c)}</small></span>
+            </button>
+          ))}
+        </div>
+        {fluvial && x.terminals
+          ? <>
+            <Row label={`Terminal ${x.places[0]}`} value={formatLonLat(x.terminals[0])} />
+            <Row label={`Terminal ${x.places[1]}`} value={formatLonLat(x.terminals[1])} />
+            {x.lengthKm !== undefined && <Row label="Distancia entre terminales" value={`≈ ${int(x.lengthKm)} km`} />}
+          </>
+          : <Row label="Coordenadas" value={formatLonLat(x.lonlat)} />}
+        <Row label="Precisión" value={x.precision === 'estructura' ? 'Ubicación del puente o puesto' : 'Aproximada (centro de la localidad)'} />
+        <p className="muted small-text">Información geográfica: este paso todavía no influye en el movimiento de tropas.</p>
+        <div className="geo-src"><span className="crow-label">Fuentes</span><SourceLinks sources={x.source} /></div>
+      </div>
+    </section>
+  );
+}
+
 // ---------------- Columna ----------------
 
 export function ContextPanel(props: Props) {
   const { state, selection } = props;
   const country = selection.kind === 'country' ? selection.country : state.player;
-  const selKey = selection.kind === 'region' ? `r:${selection.regionId}` : selection.kind === 'units' ? `u:${selection.unitIds.join()}` : selection.kind;
+  const selKey = selection.kind === 'region' ? `r:${selection.regionId}` : selection.kind === 'units' ? `u:${selection.unitIds.join()}`
+    : selection.kind === 'city' ? `c:${selection.cityId}` : selection.kind === 'crossing' ? `x:${selection.crossingId}` : selection.kind;
   const ref = useRef<HTMLDivElement>(null);
   // Al seleccionar región o batallones, llevar su tarjeta a la vista (pantallas bajas).
   useEffect(() => {
-    if (selection.kind !== 'region' && selection.kind !== 'units') return;
-    const card = ref.current?.querySelector('.region-card, .units-card');
+    if (selection.kind === 'none' || selection.kind === 'country') return;
+    const card = ref.current?.querySelector('.region-card, .units-card, .geo-card');
     card?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [selKey]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
@@ -328,6 +418,8 @@ export function ContextPanel(props: Props) {
       <CountryCard key={country} state={state} country={country} openSection={props.openSection} onCollapse={props.onCollapse} />
       {selection.kind === 'region' && <RegionCard {...props} regionId={selection.regionId} />}
       {selection.kind === 'units' && <UnitsCard {...props} selection={selection} />}
+      {selection.kind === 'city' && <CityCard cityId={selection.cityId} setSelection={props.setSelection} />}
+      {selection.kind === 'crossing' && <CrossingCard crossingId={selection.crossingId} setSelection={props.setSelection} />}
     </div>
   );
 }

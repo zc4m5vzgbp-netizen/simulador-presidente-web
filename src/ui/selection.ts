@@ -5,7 +5,9 @@ export type Selection =
   | { kind: 'none' }
   | { kind: 'region'; regionId: string }
   | { kind: 'country'; country: CountryId }
-  | { kind: 'units'; regionId: string; owner: CountryId; unitIds: string[] };
+  | { kind: 'units'; regionId: string; owner: CountryId; unitIds: string[] }
+  | { kind: 'city'; cityId: string }
+  | { kind: 'crossing'; crossingId: string };
 
 export const NO_SELECTION: Selection = { kind: 'none' };
 

@@ -87,6 +87,8 @@ export function GameScreen({ state }: { state: GameState }) {
           <MapView state={state} selection={selection} orderMode={orderMode} layers={layers}
             onToggleLayer={(id) => setLayers((l) => ({ ...l, [id]: !(l[id] !== false) }))}
             onTapRegion={onTapRegion} onTapUnits={onTapUnits}
+            onTapCity={(cityId) => select({ kind: 'city', cityId })}
+            onTapCrossing={(crossingId) => select({ kind: 'crossing', crossingId })}
             onTapEmpty={() => { setOrderMode(false); setSelection(NO_SELECTION); }} />
 
           {orderMode && (

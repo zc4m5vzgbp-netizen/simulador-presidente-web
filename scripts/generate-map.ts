@@ -254,5 +254,10 @@ const out = {
 };
 
 writeFileSync(new URL('../src/data/map.generated.json', import.meta.url), JSON.stringify(out));
+// Parámetros de la proyección: los usa generate-geo para colocar ciudades,
+// pasos fronterizos y carreteras exactamente sobre este mapa.
+writeFileSync(new URL('../src/data/projection.json', import.meta.url), JSON.stringify({
+  type: 'mercator', scale: projection.scale(), translate: projection.translate(),
+}));
 console.log(`Mapa: ${out.width}x${out.height}, ${regions.length} regiones`);
 for (const r of out.regions) console.log(r.id.padEnd(6), r.neighbors.join(' '));

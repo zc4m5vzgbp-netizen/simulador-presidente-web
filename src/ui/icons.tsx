@@ -2,6 +2,10 @@
 import type { ReactNode } from 'react';
 
 const PATHS: Record<string, ReactNode> = {
+  city: <><path d="M3 20.5h18M5 20.5V10l4-2.5v13M9 20.5V4.5h6.5v16M15.5 20.5v-9H19v9" /><path d="M11.5 8h1.5M11.5 11.5h1.5M11.5 15h1.5" /></>,
+  crossing: <><path d="M5 21V4M3 21h4" /><path d="M5 7.5h15.5v3.5H5" /><path d="M9 7.5 11 11M13.5 7.5l2 3.5M18 7.5l2 3.5" /></>,
+  ferry: <><path d="M2.5 18c1.6 1.3 3.2 1.3 4.8 0s3.2-1.3 4.8 0 3.2 1.3 4.8 0 3.2-1.3 4.8 0" /><path d="M5 15l1.2-5h11.6L19 15M9 10V6.5h6V10" /></>,
+  road: <><path d="M8.5 3 5 21M15.5 3 19 21" /><path d="M12 4.5v2.5M12 10.5V13M12 16.5V19" /></>,
   map: <><path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z" /><path d="M9 4v13.5M15 6.5V20" /></>,
   economy: <><path d="M4 20V10M10 20V5M16 20v-7M22 20H2" /></>,
   diplomacy: <><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17M12 3.5c2.6 2.6 2.6 14.4 0 17M12 3.5c-2.6 2.6-2.6 14.4 0 17" /></>,

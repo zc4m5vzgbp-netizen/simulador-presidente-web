@@ -10,6 +10,8 @@ import { Icon } from '../icons';
 import { FlagSvg } from '../flags';
 import { Minimap } from './Minimap';
 import { reliefTexture } from './texture';
+import { CROSSINGS, cityById, crossingById } from '../../geo';
+import { CitiesLayer, CrossingsLayer, RoadsLayer, cityIconBox, cityLabelCandidates, cityLabelItems, crossingIconBox, hitRadii, visibleCities } from './GeoLayers';
 import mapData from '../../data/map.generated.json';
 
 interface Props {
@@ -20,6 +22,8 @@ interface Props {
   onToggleLayer: (id: string) => void;
   onTapRegion: (regionId: string) => void;
   onTapUnits: (regionId: string, owner: CountryId) => void;
+  onTapCity: (cityId: string) => void;
+  onTapCrossing: (crossingId: string) => void;
   onTapEmpty: () => void;
 }
 
@@ -96,7 +100,7 @@ function relationClass(state: GameState, owner: CountryId): 'mine' | 'enemy' | '
   return 'other';
 }
 
-interface Box { x0: number; y0: number; x1: number; y1: number }
+type Box = import('./GeoLayers').Box;
 const overlap = (a: Box, b: Box) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) * Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
 const shift = (b: Box, dx: number, dy: number): Box => ({ x0: b.x0 + dx, y0: b.y0 + dy, x1: b.x1 + dx, y1: b.y1 + dy });
 
@@ -107,22 +111,23 @@ const LABEL_CANDIDATES: [number, number][] = [[0, 0], [0, -30], [0, 30], [-48, 0
  * Coloca cada rótulo en el primer hueco libre (sin tocar batallones ni otros
  * rótulos). Solo cambia dónde se dibuja el texto, nunca las unidades.
  */
-function placeLabels<T extends { box: Box }>(items: T[], obstacles: Box[], k: number): (T & { dx: number; dy: number; crowded: boolean })[] {
-  const placed: Box[] = [];
+function placeLabels<T extends { box: Box }>(items: T[], obstacles: Box[], k: number, placed: Box[] = [],
+  candidates: (it: T) => [number, number][] = () => LABEL_CANDIDATES, dropCrowded = false): (T & { dx: number; dy: number; crowded: boolean })[] {
   return items.map((it) => {
     let best = { dx: 0, dy: 0, score: Infinity };
-    for (const [px, py] of LABEL_CANDIDATES) {
+    for (const [px, py] of candidates(it)) {
       const b = shift(it.box, px * k, py * k);
       const score = [...obstacles, ...placed].reduce((sum, o) => sum + overlap(b, o), 0);
       if (score < best.score) best = { dx: px * k, dy: py * k, score };
       if (score === 0) break;
     }
-    placed.push(shift(it.box, best.dx, best.dy));
+    // Con dropCrowded, un rótulo sin hueco no se dibuja y no ocupa sitio.
+    if (!dropCrowded || best.score === 0) placed.push(shift(it.box, best.dx, best.dy));
     return { ...it, dx: best.dx, dy: best.dy, crowded: best.score > 0 };
   });
 }
 
-export function MapView({ state, selection, orderMode, layers, onToggleLayer, onTapRegion, onTapUnits, onTapEmpty }: Props) {
+export function MapView({ state, selection, orderMode, layers, onToggleLayer, onTapRegion, onTapUnits, onTapCity, onTapCrossing, onTapEmpty }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [size, setSize] = useState({ w: 640, h: 360 });
   const [view, setView] = useState<View>(() => initialView(state.player, 360 / 640));
@@ -146,6 +151,11 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
     ro.observe(el);
     return () => ro.disconnect();
   }, [state.player]);
+
+  // Gancho de pruebas y capturas: fijar la vista del mapa (no toca el motor).
+  useEffect(() => {
+    (window as unknown as { __setView?: (v: View) => void }).__setView = (v) => setView({ ...v, w: Math.min(MAX_W, Math.max(MIN_W, v.w)) });
+  }, []);
 
   const h = view.w * (size.h / size.w);
   const k = view.w / size.w; // unidades de mapa por píxel de pantalla
@@ -205,8 +215,16 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
     setLayerMenu(false);
     const target = document.elementFromPoint(e.clientX, e.clientY) as Element | null;
     const unitEl = target?.closest('[data-units]');
-    const regionEl = target?.closest('[data-region]');
+    const cityEl = target?.closest('[data-city]');
+    const crossingEl = target?.closest('[data-crossing]');
+    // Región bajo el dedo aunque haya un icono encima (ciudades, pasos).
+    const regionEl = target?.closest('[data-region]')
+      ?? document.elementsFromPoint(e.clientX, e.clientY).find((el) => el.hasAttribute('data-region'));
+    // Prioridad: batallones > ciudad / paso > región. Al dar una orden de
+    // marcha solo cuentan las regiones (los iconos no son destinos).
     if (unitEl && !orderMode) onTapUnits(unitEl.getAttribute('data-units')!, unitEl.getAttribute('data-owner') as CountryId);
+    else if (cityEl && !orderMode) onTapCity(cityEl.getAttribute('data-city')!);
+    else if (crossingEl && !orderMode) onTapCrossing(crossingEl.getAttribute('data-crossing')!);
     else if (regionEl) onTapRegion(regionEl.getAttribute('data-region')!);
     else if (unitEl) onTapRegion(unitEl.getAttribute('data-units')!);
     else onTapEmpty();
@@ -245,20 +263,32 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
     const y = ay - 2 * k;
     return { g, x, y, box: { x0: x - tW / 2 - 3 * k, y0: y - 3 * k, x1: x + tW / 2 + 3 * k, y1: y + tH + 3 * k } as Box };
   });
-  const obstacles = show('units') ? stackItems.map((t) => t.box) : [];
+  // Ciudades y pasos visibles a este zoom: sus iconos también son obstáculos.
+  const cities = show('cities') ? visibleCities(k) : [];
+  const obstacles = [
+    ...(show('units') ? stackItems.map((t) => t.box) : []),
+    ...cities.map((c) => cityIconBox(c, k)),
+    ...(show('crossings') ? CROSSINGS.map((x) => crossingIconBox(x, k)) : []),
+  ];
+  const placedLabels: Box[] = [];
+  const hits = hitRadii(cities, show('crossings') ? CROSSINGS : [], k);
 
   const countryLabels = show('labels') && !zoomedIn ? placeLabels(COUNTRY_IDS.map((c) => {
     const [x, y] = COUNTRY_LABELS[c];
     const name = COUNTRY_DEFS[c].name.toUpperCase();
-    const w = Math.max(22, name.length * 8.2) * k;
+    const w = Math.max(22, name.length * 9.6 + 4) * k;
     return { c, x, y, name, box: { x0: x - w / 2, y0: y - 23 * k, x1: x + w / 2, y1: y + 10 * k } as Box };
-  }), obstacles, k) : [];
+  }), obstacles, k, placedLabels) : [];
+
+  // Nombres de ciudades: junto a su icono; si no caben, no se dibujan.
+  const cityLabels = show('labels') ? placeLabels(cityLabelItems(cities, k), obstacles, k, placedLabels, (it) => cityLabelCandidates(it, k), true)
+    .filter((l) => !l.crowded) : [];
 
   const regionLabels = show('labels') && zoomedIn ? placeLabels(Object.values(REGIONS).map((r) => {
     const w = Math.max(30, r.name.length * 6) * k;
     const x = r.anchor[0], y = r.anchor[1] + 28 * k;
     return { r, x, y, box: { x0: x - w / 2, y0: y - 7 * k, x1: x + w / 2, y1: y + 7 * k } as Box };
-  }), obstacles, k) : [];
+  }), obstacles, k, placedLabels, undefined, true) : [];
 
   function tile(key: string, x: number, y: number, owner: CountryId, count: number | null, extra: string, regionId: string, sel: boolean) {
     const rel = relationClass(state, owner);
@@ -338,6 +368,9 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
         </g>
 
         <g data-layer="borders">
+          {/* Fronteras internacionales: línea clara sobre un borde oscuro, distinta
+              de las divisiones regionales (finas y discontinuas). */}
+          {COUNTRY_IDS.map((c) => <path key={`cs-${c}`} d={MAP.countries[c]} className="country-casing" style={{ strokeWidth: 3.4 * k }} />)}
           <path d={MAP.countries[state.player]} className="player-glow" style={{ strokeWidth: 7 * k }} />
           {COUNTRY_IDS.map((c) => (
             <path key={c} d={MAP.countries[c]} className={`country-edge${c === state.player ? ' player' : ''}`}
@@ -345,8 +378,14 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
           ))}
         </g>
 
-        {/* Capas reservadas: vacías hasta disponer de datos verificados. */}
-        {MAP_LAYERS.filter((l) => l.status === 'planned').map((l) => <g key={l.id} data-layer={l.id} data-status="planned" />)}
+        {/* Capas cartográficas en el orden del registro. Las previstas quedan
+            vacías hasta disponer de datos verificados. */}
+        {MAP_LAYERS.filter((l) => l.status === 'planned' || ['roads', 'crossings', 'cities'].includes(l.id)).map((l) => {
+          if (l.status === 'planned') return <g key={l.id} data-layer={l.id} data-status="planned" />;
+          if (l.id === 'roads') return <g key={l.id} data-layer="roads" pointerEvents="none">{show('roads') && <RoadsLayer />}</g>;
+          if (l.id === 'crossings') return <g key={l.id} data-layer="crossings">{show('crossings') && <CrossingsLayer k={k} selectedId={selection.kind === 'crossing' ? selection.crossingId : null} hits={hits} />}</g>;
+          return <g key={l.id} data-layer="cities">{show('cities') && <CitiesLayer cities={cities} labels={cityLabels} k={k} selectedId={selection.kind === 'city' ? selection.cityId : null} hits={hits} />}</g>;
+        })}
 
         <g data-layer="routes">
           {show('routes') && Object.values(state.units).filter((u) => u.owner === state.player && u.path.length).map((u) => {
@@ -416,6 +455,12 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
           {selection.kind === 'region' && <path d={REGIONS[selection.regionId].path} className="sel-outline" style={{ strokeWidth: 2.4 * k }} />}
           {selection.kind === 'units' && <path d={REGIONS[selection.regionId].path} className="sel-outline soft" style={{ strokeWidth: 1.6 * k }} />}
           {selection.kind === 'country' && <path d={MAP.countries[selection.country]} className="sel-outline" style={{ strokeWidth: 2.4 * k }} />}
+          {selection.kind === 'city' && cityById(selection.cityId) && (
+            <circle cx={cityById(selection.cityId)!.xy[0]} cy={cityById(selection.cityId)!.xy[1]} r={11 * k} className="sel-ring" style={{ strokeWidth: 2 * k }} />
+          )}
+          {selection.kind === 'crossing' && crossingById(selection.crossingId) && (
+            <circle cx={crossingById(selection.crossingId)!.xy[0]} cy={crossingById(selection.crossingId)!.xy[1]} r={11 * k} className="sel-ring" style={{ strokeWidth: 2 * k }} />
+          )}
         </g>
       </svg>
 
@@ -444,7 +489,7 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
                 {l.status === 'planned' && <Icon name="lock" size={13} className="soon" />}
               </label>
             ))}
-            <p className="layer-note">Con candado: capas previstas, aún sin datos.</p>
+            <p className="layer-note">Con candado: capas previstas, aún sin datos. Las ciudades secundarias y sus nombres aparecen al acercar.</p>
           </div>
         )}
       </div>

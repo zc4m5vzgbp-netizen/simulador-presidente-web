@@ -8,7 +8,7 @@
  * píxel) para que iconos y textos mantengan su tamaño al hacer zoom.
  */
 import { memo } from 'react';
-import { CITIES, CROSSINGS, ROADS, type City, type Crossing } from '../../geo';
+import { CITIES, CROSSINGS, ROAD_NETWORK, type City, type Crossing } from '../../geo';
 
 export interface Box { x0: number; y0: number; x1: number; y1: number }
 
@@ -116,12 +116,10 @@ export function hitRadii(cities: City[], crossings: Crossing[], k: number): Map<
 export const RoadsLayer = memo(function RoadsLayer() {
   return (
     <>
-      {ROADS.map((r) => (
-        <g key={r.id} data-road={r.id} className="road">
-          <path d={r.path} className="road-casing" vectorEffect="non-scaling-stroke" />
-          <path d={r.path} className="road-line" vectorEffect="non-scaling-stroke" />
-        </g>
-      ))}
+      {ROAD_NETWORK && <g data-road-network="true" className="road">
+        <path d={ROAD_NETWORK} className="road-casing" vectorEffect="non-scaling-stroke" />
+        <path d={ROAD_NETWORK} className="road-line" vectorEffect="non-scaling-stroke" />
+      </g>}
     </>
   );
 });

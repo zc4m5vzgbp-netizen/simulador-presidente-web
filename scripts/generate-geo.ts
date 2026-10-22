@@ -293,6 +293,27 @@ if (errors.length) {
   process.exit(1);
 }
 
+// MAP-002: renderizar la red cartográfica disponible, no solamente los corredores
+// seleccionados entre ciudades. Los corredores siguen disponibles como metadatos.
+// Agrupamos las geometrías en un único trazado SVG para evitar miles de nodos DOM.
+// Natural Earth es una red generalizada: no implica que todos los caminos locales
+// existan en esta fuente. No inventamos conexiones entre extremos separados.
+const networkSegments: string[] = [];
+let networkCount = 0;
+for (const feature of roads.features) {
+  const geometry = feature.geometry;
+  const lines: LonLat[][] = geometry.type === 'MultiLineString'
+    ? geometry.coordinates : geometry.type === 'LineString' ? [geometry.coordinates] : [];
+  for (const line of lines) {
+    if (line.length < 2) continue;
+    const xy = simplify(line.map(P), 0.25);
+    if (xy.length < 2) continue;
+    networkSegments.push('M' + xy.map(([x, y]) => `${+x.toFixed(1)},${+y.toFixed(1)}`).join('L'));
+    networkCount++;
+  }
+}
+console.log(`Red vial cartográfica: ${networkCount} segmentos (frente a ${count(roadsOut)} corredores seleccionados)`);
+
 const out = {
   generatedFrom: {
     naturalEarth: 'Natural Earth 1:10m (Populated Places, Admin-1, Roads) y 1:50m (Admin-0), dominio público',
@@ -300,6 +321,7 @@ const out = {
     projection: proj,
   },
   cities, crossings, roads: roadsOut,
+  roadNetwork: networkSegments.join(''),
 };
 mkdirSync(new URL('../src/data/geo/', import.meta.url), { recursive: true });
 writeFileSync(new URL('../src/data/geo/geo.generated.json', import.meta.url), JSON.stringify(out));

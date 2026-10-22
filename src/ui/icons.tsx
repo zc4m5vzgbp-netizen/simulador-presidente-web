@@ -21,6 +21,22 @@ const PATHS: Record<string, ReactNode> = {
   move: <><path d="M4 12h14M13 6.5l5.5 5.5-5.5 5.5" /></>,
   stop: <rect x="6" y="6" width="12" height="12" rx="1.5" />,
   rotate: <><rect x="7" y="2.5" width="10" height="19" rx="2" /><path d="M20.5 15.5a8.5 8.5 0 0 1-4 4.3M3.5 8.5a8.5 8.5 0 0 1 4-4.3" /></>,
+  gdp: <><path d="M7 21h10a3 3 0 0 0 3-3c0-4.5-3.5-8-5.5-9.5L16 5H8l1.5 3.5C7.5 10 4 13.5 4 18a3 3 0 0 0 3 3z" /><path d="M12 11.5v6M10 13.2c0-.9.9-1.5 2-1.5s2 .6 2 1.5-1 1.3-2 1.5-2 .6-2 1.5.9 1.5 2 1.5 2-.6 2-1.5" /></>,
+  reserves: <><rect x="3.5" y="4.5" width="17" height="15" rx="1.5" /><circle cx="12" cy="12" r="3.5" /><path d="M12 8.5v1.2M12 14.3v1.2M15.5 12h-1.2M9.7 12H8.5M6 19.5v1.5M18 19.5v1.5" /></>,
+  population: <><circle cx="9" cy="8" r="3" /><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5" /><circle cx="17" cy="9" r="2.3" /><path d="M15.5 14.3c.5-.2 1-.3 1.5-.3 2.3 0 4 1.6 4 4" /></>,
+  stability: <><path d="M12 4v16M5 20h14M6 8h12" /><path d="M6 8 3.5 14h5zM18 8l-2.5 6h5z" /></>,
+  calendar: <><rect x="3.5" y="5" width="17" height="15.5" rx="1.5" /><path d="M3.5 10h17M8 3v4M16 3v4" /><path d="M7.5 13.5h2M11 13.5h2M14.5 13.5h2M7.5 17h2M11 17h2" /></>,
+  mail: <><rect x="3" y="5.5" width="18" height="13" rx="1.5" /><path d="m3.5 6.5 8.5 6.5 8.5-6.5" /></>,
+  soldier: <><circle cx="12" cy="5.5" r="2.3" /><path d="M8.5 10.5h7l-1 5h-1.5l-.5 6h-2l-.5-6h-1.5z" /><path d="M15.5 10.5l3 -2.5" /></>,
+  lock: <><rect x="5.5" y="10.5" width="13" height="10" rx="1.5" /><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3" /></>,
+  user: <><circle cx="12" cy="8.5" r="4" /><path d="M4.5 21c0-4.2 3.4-7 7.5-7s7.5 2.8 7.5 7" /></>,
+  globe: <><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17M12 3.5c2.6 2.6 2.6 14.4 0 17M12 3.5c-2.6 2.6-2.6 14.4 0 17" /></>,
+  handshake: <><path d="M2.5 9.5 6 6l3.5 1.5L12 6.5l3 1L18 6l3.5 3.5" /><path d="M2.5 9.5 7 15l2 1.5 1.5-1 1.5 1.5 1.5-1 1.5 1 1.5-1.5L21.5 9.5" /><path d="m9.5 7.5-2.5 3 1.5 1.5 3.5-3 4 3.5" /></>,
+  tank: <><rect x="3" y="12.5" width="18" height="6" rx="3" /><path d="M6 12.5V10h9l2 2.5M11 10V8h9" /><circle cx="7" cy="15.5" r="1" /><circle cx="12" cy="15.5" r="1" /><circle cx="17" cy="15.5" r="1" /></>,
+  chevronUp: <path d="m5 15 7-7 7 7" />,
+  chevronDown: <path d="m5 9 7 7 7-7" />,
+  up: <path d="M12 19V5M6 11l6-6 6 6" />,
+  down: <path d="M12 5v14M6 13l6 6 6-6" />,
 };
 
 export type IconName = keyof typeof PATHS;

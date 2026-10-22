@@ -11,7 +11,7 @@ import { MapView } from './map/MapView';
 import { defaultVisibility, type LayerVisibility } from './map/layers';
 import { TopBar } from './layout/TopBar';
 import { NavRail, SECTIONS, type SectionId } from './layout/NavRail';
-import { ContextPanel, contextTitle } from './layout/ContextPanel';
+import { ContextPanel } from './layout/ContextPanel';
 import { EconomyPanel } from './panels/EconomyPanel';
 import { DiplomacyPanel } from './panels/DiplomacyPanel';
 import { ArmyPanel } from './panels/ArmyPanel';
@@ -73,14 +73,13 @@ export function GameScreen({ state }: { state: GameState }) {
   }
 
   const sectionDef = SECTIONS.find((s) => s.id === section);
-  const sideTitle = section === 'map' ? contextTitle(state, selection)
-    : section === 'game' ? { title: 'Partida', subtitle: 'Guardar, cargar y noticias' }
+  const sideTitle = section === 'game' ? { title: 'Partida', subtitle: 'Guardar, cargar y noticias' }
     : { title: sectionDef?.label ?? '', subtitle: sectionDef?.available ? 'Sección' : 'En desarrollo' };
   const sideOpen = section !== 'map' || !collapsed;
 
   return (
     <div className="game">
-      <TopBar state={state} optionsOpen={section === 'game'} onOptions={() => openSection(section === 'game' ? 'map' : 'game')} />
+      <TopBar state={state} optionsOpen={section === 'game'} onOptions={() => openSection(section === 'game' ? 'map' : 'game')} onInbox={() => openSection('diplomacy')} />
       <div className={`game-body${section !== 'map' ? ' wide' : ''}${sideOpen ? '' : ' collapsed'}`}>
         <NavRail active={section === 'game' ? 'map' : section} onSelect={(id) => openSection(id)} badges={{ diplomacy: inbox }} />
 
@@ -109,25 +108,19 @@ export function GameScreen({ state }: { state: GameState }) {
         </main>
 
         {sideOpen && (
-          <aside className="side" data-testid="side" aria-label="Información">
-            <header className="side-head">
+          <aside className={`side${section === 'map' ? ' cards-mode' : ''}`} data-testid="side" aria-label="Información">
+            {section !== 'map' && <header className="side-head">
               <div className="side-titles">
                 <span className="side-sub">{sideTitle.subtitle}</span>
                 <h2 className="side-title">{sideTitle.title}</h2>
               </div>
-              {section === 'map' ? (
-                <button type="button" className="icon-btn" aria-label="Contraer panel" data-action="collapse" onClick={() => setCollapsed(true)}>
-                  <Icon name="chevronRight" />
-                </button>
-              ) : (
-                <button type="button" className="icon-btn" aria-label="Volver al mapa" onClick={() => openSection('map')}>
-                  <Icon name="close" />
-                </button>
-              )}
-            </header>
+              <button type="button" className="icon-btn" aria-label="Volver al mapa" onClick={() => openSection('map')}>
+                <Icon name="close" />
+              </button>
+            </header>}
             <div className="side-scroll">
               {section === 'map' && (
-                <ContextPanel state={state} selection={selection} setSelection={select} startOrder={startOrder} openSection={openSection} />
+                <ContextPanel state={state} selection={selection} setSelection={select} startOrder={startOrder} openSection={openSection} onCollapse={() => setCollapsed(true)} />
               )}
               {section === 'economy' && <EconomyPanel state={state} />}
               {section === 'diplomacy' && <DiplomacyPanel key={diploCountry ?? 'all'} state={state} initialCountry={diploCountry} />}

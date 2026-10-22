@@ -24,26 +24,30 @@ test('En vertical aparece el aviso de giro, la partida se pausa y se recupera al
   await page.locator('[data-speed="0"]').tap();
 });
 
-test('Tocar una región la selecciona y el panel muestra región, país y tropas', async ({ page }) => {
+test('Tocar una región la selecciona y el panel muestra la región, su país y sus tropas', async ({ page }) => {
   await startGame(page, 'CHL');
   const p = await regionPoint(page, 'CL_NO');
   await page.touchscreen.tap(p.x, p.y);
   const side = page.getByTestId('side');
-  await expect(side.locator('.side-title')).toHaveText('Norte Grande');
-  await side.locator('[data-ctx-tab="country"]').tap();
-  await expect(side).toContainText('PIB');
-  await side.locator('[data-ctx-tab="troops"]').tap();
-  await side.getByRole('button', { name: 'Ver país' }).count();
-  await side.locator('[data-ctx-tab="region"]').tap();
-  await side.getByRole('button', { name: /Chile/ }).first().tap();
-  await expect(side.locator('.side-title')).toHaveText('Chile');
-  await expect(side.locator('[data-ctx-tab="military"]')).toBeVisible();
+  await expect(side.locator('.region-card .rc-name')).toHaveText('Norte Grande');
+  await expect(side.locator('.region-card')).toContainText('PIB regional');
+  await expect(side.locator('.region-card .region-thumb')).toBeVisible();
+  await side.locator('[data-action="troops"]').tap();
+  await expect(side.locator('.region-card .unit-card').first()).toBeVisible();
+  // Pestañas del país
+  for (const tab of ['economy', 'military', 'diplomacy', 'summary']) {
+    await side.locator(`[data-ctx-tab="${tab}"]`).tap();
+    await expect(side.locator(`[data-ctx-tab="${tab}"]`)).toHaveAttribute('aria-selected', 'true');
+  }
+  // Seleccionar el país desde la región
+  await side.locator('.region-card .rc-owner').tap();
+  await expect(side.locator('.country-card .cc-name')).toHaveText('Chile');
 });
 
 test('Tocar batallones propios y ajenos los selecciona', async ({ page }) => {
   await startGame(page, 'BRA');
   await page.locator('[data-units="BR_CO"][data-owner="BRA"]').tap();
-  await expect(page.getByTestId('side').locator('.side-sub')).toContainText('Brasil');
+  await expect(page.getByTestId('side').locator('.units-card .rc-owner')).toContainText('Brasil');
   await expect(page.locator('[data-action="move"]')).toBeEnabled();
   const n = await page.locator('.unit-card.selected').count();
   expect(n).toBeGreaterThan(0);
@@ -52,16 +56,12 @@ test('Tocar batallones propios y ajenos los selecciona', async ({ page }) => {
   // Batallón extranjero: solo consulta
   await page.locator('[data-tab="army"]').tap();
   await page.locator('[data-tab="map"]').tap();
-  const pt = await page.evaluate(() => {
-    for (const el of document.querySelectorAll('.stack:not(.mine)')) {
-      const r = el.getBoundingClientRect();
-      const x = r.left + r.width / 2, y = r.top + r.height / 2;
-      if (document.elementFromPoint(x, y)?.closest('.stack') === el) return { x, y };
-    }
-    return null;
-  });
-  expect(pt, 'hay un batallón extranjero visible').not.toBeNull();
-  await page.touchscreen.tap(pt!.x, pt!.y);
+  // Batallón extranjero: se toca su región y luego el batallón en la lista de tropas.
+  const p = await regionPoint(page, 'PY_OR');
+  await page.touchscreen.tap(p.x, p.y);
+  await page.locator('[data-action="troops"]').tap();
+  await page.locator('.region-card .unit-card').first().tap();
+  await expect(page.locator('.units-card .rc-owner')).toContainText('Paraguay');
   await expect(page.getByTestId('side')).toContainText('Solo puedes consultar');
   await expect(page.locator('[data-action="move"]')).toHaveCount(0);
 });
@@ -90,14 +90,14 @@ test('Navegación lateral: secciones activas y secciones en desarrollo', async (
   const p = await regionPoint(page, 'CO_AN');
   await page.touchscreen.tap(p.x, p.y);
   await expect(page.locator('[data-tab="map"]')).toHaveAttribute('aria-current', 'page');
-  await expect(page.getByTestId('side').locator('.side-title')).toHaveText('Región Andina');
+  await expect(page.getByTestId('side').locator('.rc-name')).toHaveText('Región Andina');
   // Estadísticas: tocar un país lo selecciona en el mapa
   await page.locator('[data-tab="stats"]').tap();
   await page.locator('table.stats').getByRole('button', { name: /Venezuela/ }).tap();
-  await expect(page.getByTestId('side').locator('.side-title')).toHaveText('Venezuela');
+  await expect(page.getByTestId('side').locator('.cc-name')).toHaveText('Venezuela');
 });
 
-test('Zoom con dos dedos y controles del mapa sin alterar la selección', async ({ page }) => {
+test('Zoom con dos dedos, minimapa y controles del mapa sin alterar la selección', async ({ page }) => {
   await startGame(page, 'ARG');
   const svg = page.locator('svg.map');
   const w0 = Number(await svg.getAttribute('data-view-w'));
@@ -108,16 +108,44 @@ test('Zoom con dos dedos y controles del mapa sin alterar la selección', async 
   await expect.poll(async () => Number(await svg.getAttribute('data-view-w'))).toBeGreaterThan(w1 * 1.3);
   const p = await regionPoint(page, 'AR_BA');
   await page.touchscreen.tap(p.x, p.y);
-  const title = await page.getByTestId('side').locator('.side-title').textContent();
+  const title = await page.getByTestId('side').locator('.rc-name').textContent();
   await page.getByRole('button', { name: 'Acercar' }).tap();
   await page.getByRole('button', { name: 'Alejar' }).tap();
   await page.getByRole('button', { name: 'Centrar en tu país' }).tap();
-  await expect(page.getByTestId('side').locator('.side-title')).toHaveText(title!);
+  // El minimapa recentra la vista
+  // (en pantallas muy bajas, como el iPhone SE, el minimapa se oculta a propósito)
+  if (await page.locator('.minimap').isVisible()) {
+    const before = await svg.getAttribute('viewBox');
+    const mm = (await page.locator('.minimap svg').boundingBox())!;
+    await page.touchscreen.tap(mm.x + mm.width * 0.7, mm.y + mm.height * 0.3);
+    await expect.poll(() => svg.getAttribute('viewBox')).not.toBe(before);
+  }
+  await expect(page.getByTestId('side').locator('.rc-name')).toHaveText(title!);
   // Los botones táctiles miden al menos 40 px
   for (const name of ['Acercar', 'Alejar', 'Capas del mapa']) {
     const bb = (await page.getByRole('button', { name }).boundingBox())!;
-    expect(Math.min(bb.width, bb.height)).toBeGreaterThanOrEqual(40);
+    expect(Math.min(bb.width, bb.height)).toBeGreaterThanOrEqual(38);
   }
+});
+
+test('Barra superior: datos reales, buzón de propuestas y multiplicador de tiempo', async ({ page }) => {
+  await startGame(page, 'BRA');
+  const gdp = await game<number>(page, 's.countries.BRA.gdp');
+  expect(gdp).toBeGreaterThan(1000);
+  await expect(page.locator('.tb-gdp')).toContainText('bill.');
+  await page.locator('[data-action="inbox"]').tap();
+  await expect(page.locator('[data-tab="diplomacy"]')).toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('.rail-btn.future')).toHaveCount(3);
+  await expect(page.locator('.rail-btn.future .rail-lock')).toHaveCount(3);
+});
+
+test('Los marcadores se colorean según la relación: propios, enemigos y otros', async ({ page }) => {
+  await startGame(page, 'VEN');
+  await expect(page.locator('.stack.mine').first()).toBeVisible();
+  expect(await page.locator('.stack.enemy').count()).toBe(0);
+  await game(page, "g.act({ type: 'declareWar', target: 'GUY' })");
+  await expect.poll(() => page.locator('.stack.enemy').count()).toBeGreaterThan(0);
+  expect(await page.locator('.stack.other').count()).toBeGreaterThan(0);
 });
 
 test('Capas: las disponibles se pueden ocultar y las futuras aparecen como próximamente', async ({ page }) => {

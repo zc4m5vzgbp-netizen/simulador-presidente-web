@@ -233,12 +233,20 @@ for (const iso of ['FRA', 'PAN', 'CRI']) {
 let maxY = 0;
 for (const r of regions) for (const ring of r.rings) for (const [, y] of ring) maxY = Math.max(maxY, y);
 
+// Rótulos de mares y océanos (posiciones geográficas reales, solo decorativas).
+const seaLabels = [
+  { name: 'Mar Caribe', at: proj([-72.5, 14.2]) },
+  { name: 'Océano Pacífico', at: proj([-87, -16]) },
+  { name: 'Océano Atlántico', at: proj([-31, -24]) },
+];
+
 const out = {
   source: 'Natural Earth 1:50m Admin 0 (dominio público), proyección Mercator, simplificado',
   width: WIDTH,
   height: Math.ceil(maxY + 20),
   countries: Object.fromEntries(COUNTRY_IDS.map((iso) => [iso, pathOf(countryRings[iso])])),
   neutral,
+  seaLabels,
   regions: regions.map((r) => ({
     id: r.id, country: r.country, path: r.path, anchor: r.anchor, area: Math.round(r.area),
     neighbors: [...neighbors[r.id]].sort(),

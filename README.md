@@ -11,11 +11,22 @@ Diseñada para jugar **en horizontal** en iPhone: barra superior con los indicad
 ## Cómo jugar
 
 - **Tiempo**: pausa, normal (1 día = 60 s), rápida (×10) y muy rápida (×60). La partida empieza en pausa el 1 de enero de 2027.
-- **Mapa**: arrastra para moverte, pellizca para hacer zoom. Toca una región para ver su información.
+- **Mapa**: arrastra con un dedo para moverte y pellizca con dos para acercar o alejar (el zoom se centra entre tus dedos). Toca una región, un marcador o una ciudad para ver su información; un arrastre nunca selecciona. Ver *Interacción táctil (MOBILE-001)*.
 - **Mover tropas**: toca un marcador de tus batallones (número dorado), pulsa **Mover** en el panel derecho y luego toca la región de destino. Solo puedes entrar en territorio propio, aliado o de un país con el que estés en guerra.
 - **Guerra**: Diplomacia → país → *Declarar la guerra*. Las regiones sin defensores se ocupan tras 1 día (2 días las capitales). La ocupación transfiere el 50 % de su PIB al ocupante. La paz se negocia en Diplomacia: *paz blanca* (se devuelve todo) o *status quo* (cada uno se queda lo que ocupa).
 - **Economía**: ajusta impuestos, gasto, inversión y presupuesto militar; el panel muestra la proyección antes de aplicar. Si te quedas sin reservas, el déficit se cubre con deuda.
 - **Derrota**: pierdes si tu país queda sin territorio o si la estabilidad llega a 3.
+
+## Interacción táctil (MOBILE-001)
+
+- **Toque o arrastre**: un dedo que se mueve 10 px o menos y se levanta antes de 0,7 s es un toque (selecciona); si se mueve más, es un arrastre y no selecciona nada al soltar, aunque empiece o termine sobre un marcador.
+- **Pellizco**: el punto del mapa que está entre los dedos se queda entre los dedos; si los dedos se desplazan juntos, el mapa los acompaña. Al levantar un dedo se sigue arrastrando con el otro, sin saltos. Un gesto cancelado por el sistema no selecciona.
+- **Límites**: zoom entre 120 y 1450 unidades de mapa de ancho. El encuadre siempre conserva tierra de los 12 países en su zona central (60 %), así que el mapa no se pierde por un arrastre (`src/ui/map/bounds.ts`).
+- **Marcadores**: zona táctil de al menos 44 × 44 px.
+- **Controles y paneles en horizontal**: el menú de capas, el aviso de orden de marcha y los avisos se ajustan al hueco libre entre los botones del mapa y el tirador del panel; en pantallas estrechas el minimapa se oculta mientras el menú de capas está abierto. Con el panel contraído, el tirador respeta el margen seguro lateral del iPhone.
+- Sin cambios en el motor, el guardado ni las mecánicas del juego.
+
+Capturas antes/después (iPhone SE y 15 Pro Max, horizontal) en `docs/mobile-001/`.
 
 ## Mapa estratégico (MAP-001)
 
@@ -46,8 +57,8 @@ npm run serve        # http://localhost:4173
 ## Pruebas
 
 ```bash
-npm test             # 59 pruebas: motor (43, incluida la carga de una partida de la beta 1.0) y cartografía (16)
-npm run build && npx playwright install chromium && npm run test:e2e   # 25 pruebas táctiles × 2 tamaños de iPhone en horizontal
+npm test             # 63 pruebas: motor (43, incluida la carga de una partida de la beta 1.0), cartografía (16) y encuadre del mapa (4)
+npm run build && npx playwright install chromium && npm run test:e2e   # 34 pruebas táctiles × 2 tamaños de iPhone en horizontal
 SHOTS=1 npx playwright test screenshots   # capturas en docs/map-001/
 ```
 

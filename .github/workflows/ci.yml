@@ -1,0 +1,31 @@
+name: Pruebas y compilación
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Comprobación de tipos (motor + interfaz)
+        run: npm run typecheck
+      - name: Pruebas del motor
+        run: npm test
+      - name: Compilar
+        run: npm run build
+      - name: Pruebas táctiles (iPhone emulado)
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        with:
+          name: juego-compilado
+          path: dist/index.html

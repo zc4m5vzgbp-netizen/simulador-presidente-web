@@ -27,13 +27,13 @@ async function tapIcon(page: Page, selector: string) {
 
 test('Capas: carreteras, pasos y ciudades se muestran y ocultan; puertos, aeropuertos y provincias siguen previstos', async ({ page }) => {
   await startGame(page, 'ARG');
-  expect(await page.locator('[data-layer="roads"] [data-road]').count()).toBeGreaterThanOrEqual(10);
+  expect(await page.locator('[data-layer="roads"] [data-road-network]').count()).toBeGreaterThanOrEqual(1);
   expect(await page.locator('[data-layer="crossings"] [data-crossing]').count()).toBeGreaterThanOrEqual(15);
   expect(await page.locator('[data-city-kind="capital"]').count()).toBe(12);
   await page.getByRole('button', { name: 'Capas del mapa' }).tap();
   await expect(page.locator('.layer-row.planned')).toHaveCount(3);
   for (const id of ['provinces', 'ports', 'airports']) await expect(page.locator(`#layer-${id}`)).toBeDisabled();
-  for (const [id, sel] of [['roads', '[data-road]'], ['crossings', '[data-crossing]'], ['cities', '[data-city]']] as const) {
+  for (const [id, sel] of [['roads', '[data-road-network]'], ['crossings', '[data-crossing]'], ['cities', '[data-city]']] as const) {
     await page.locator(`label[for="layer-${id}"]`).tap();
     await expect(page.locator(sel)).toHaveCount(0);
     await page.locator(`label[for="layer-${id}"]`).tap();
@@ -49,7 +49,7 @@ test('Ocultar las capas cartográficas no altera el estado del motor', async ({ 
   const before = await game<string>(page, 'JSON.stringify(s)');
   await page.getByRole('button', { name: 'Capas del mapa' }).tap();
   for (const id of ['roads', 'crossings', 'cities']) await page.locator(`label[for="layer-${id}"]`).tap();
-  await expect(page.locator('[data-city], [data-crossing], [data-road]')).toHaveCount(0);
+  await expect(page.locator('[data-city], [data-crossing], [data-road-network]')).toHaveCount(0);
   for (const id of ['roads', 'crossings', 'cities']) await page.locator(`label[for="layer-${id}"]`).tap();
   expect(await game<string>(page, 'JSON.stringify(s)')).toBe(before);
 });

@@ -12,6 +12,29 @@ import { CITIES, CROSSINGS, ROADS, type City, type Crossing } from '../../geo';
 
 export interface Box { x0: number; y0: number; x1: number; y1: number }
 
+const DISPLAY = '"Saira Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif';
+const BODY = '"Source Sans 3", "Source Sans Pro", system-ui, -apple-system, "Segoe UI", sans-serif';
+let ctx: CanvasRenderingContext2D | null | undefined;
+const widthCache = new Map<string, number>();
+
+/**
+ * Ancho real (px) de un texto con la fuente disponible en este momento. Si no
+ * hay canvas (pruebas sin navegador) se usa una estimación prudente.
+ * `clearTextWidths` se llama cuando terminan de cargar las fuentes web.
+ */
+export function textWidth(text: string, px: number, weight: number, display: boolean, letterSpacingEm = 0): number {
+  const key = `${text}|${weight}|${display}`;
+  let w100 = widthCache.get(key);
+  if (w100 === undefined) {
+    if (ctx === undefined) ctx = typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
+    if (ctx) { ctx.font = `${weight} 100px ${display ? DISPLAY : BODY}`; w100 = ctx.measureText(text).width; }
+    else w100 = text.length * 62;
+    widthCache.set(key, w100);
+  }
+  return (w100 * px) / 100 + text.length * letterSpacingEm * px;
+}
+export const clearTextWidths = () => widthCache.clear();
+
 /** Umbrales de zoom (k = unidades de mapa por píxel; menor = más cerca). */
 export const ZOOM = {
   /** Nombres de capitales y sedes de gobierno. */
@@ -50,7 +73,7 @@ export function cityLabelItems(cities: City[], k: number) {
     .sort((a, b) => Number(isCapital(b)) - Number(isCapital(a)) || a.rank - b.rank)
     .map((c) => {
       const fs = isCapital(c) ? 11 : 10;
-      const w = (Math.max(24, c.name.length * fs * (isCapital(c) ? 0.58 : 0.56)) + 4) * k;
+      const w = (textWidth(c.name, fs, isCapital(c) ? 700 : 600, isCapital(c), isCapital(c) ? 0.03 : 0.01) + 6) * k;
       const r = cityRadius(c) * k;
       // Posición base: a la derecha del icono; placeLabels prueba otras.
       const x = c.xy[0] + r + 3 * k + w / 2, y = c.xy[1];

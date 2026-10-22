@@ -11,7 +11,7 @@ import { FlagSvg } from '../flags';
 import { Minimap } from './Minimap';
 import { reliefTexture } from './texture';
 import { CROSSINGS, cityById, crossingById } from '../../geo';
-import { CitiesLayer, CrossingsLayer, RoadsLayer, cityIconBox, cityLabelCandidates, cityLabelItems, crossingIconBox, hitRadii, visibleCities } from './GeoLayers';
+import { CitiesLayer, CrossingsLayer, RoadsLayer, cityIconBox, cityLabelCandidates, cityLabelItems, crossingIconBox, hitRadii, visibleCities, textWidth, clearTextWidths } from './GeoLayers';
 import mapData from '../../data/map.generated.json';
 
 interface Props {
@@ -152,6 +152,17 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
     return () => ro.disconnect();
   }, [state.player]);
 
+  // Al terminar de cargar las fuentes web, volver a medir los rótulos.
+  const [, setFontsReady] = useState(0);
+  useEffect(() => {
+    const fonts = (document as Document & { fonts?: FontFaceSet }).fonts;
+    if (!fonts) return;
+    const done = () => { clearTextWidths(); setFontsReady((n) => n + 1); };
+    fonts.ready.then(done);
+    fonts.addEventListener?.('loadingdone', done);
+    return () => fonts.removeEventListener?.('loadingdone', done);
+  }, []);
+
   // Gancho de pruebas y capturas: fijar la vista del mapa (no toca el motor).
   useEffect(() => {
     (window as unknown as { __setView?: (v: View) => void }).__setView = (v) => setView({ ...v, w: Math.min(MAX_W, Math.max(MIN_W, v.w)) });
@@ -276,7 +287,7 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
   const countryLabels = show('labels') && !zoomedIn ? placeLabels(COUNTRY_IDS.map((c) => {
     const [x, y] = COUNTRY_LABELS[c];
     const name = COUNTRY_DEFS[c].name.toUpperCase();
-    const w = Math.max(22, name.length * 9.6 + 4) * k;
+    const w = Math.max(22, textWidth(name, 12, 700, true, 0.06) + 6) * k;
     return { c, x, y, name, box: { x0: x - w / 2, y0: y - 23 * k, x1: x + w / 2, y1: y + 10 * k } as Box };
   }), obstacles, k, placedLabels) : [];
 
@@ -285,7 +296,7 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
     .filter((l) => !l.crowded) : [];
 
   const regionLabels = show('labels') && zoomedIn ? placeLabels(Object.values(REGIONS).map((r) => {
-    const w = Math.max(30, r.name.length * 6) * k;
+    const w = Math.max(30, textWidth(r.name, 10.5, 600, true, 0.02) + 6) * k;
     const x = r.anchor[0], y = r.anchor[1] + 28 * k;
     return { r, x, y, box: { x0: x - w / 2, y0: y - 7 * k, x1: x + w / 2, y1: y + 7 * k } as Box };
   }), obstacles, k, placedLabels, undefined, true) : [];

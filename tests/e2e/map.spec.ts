@@ -128,13 +128,10 @@ test('Los nombres de ciudades no se superponen entre sí, con otros rótulos ni 
     const r = await page.evaluate(() => {
       const hit = (a: DOMRect, b: DOMRect) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
       const cities = [...document.querySelectorAll('[data-city-label]')].map((e) => e.getBoundingClientRect());
-      const others = [
-        ...[...document.querySelectorAll('[data-country-label]:not(.crowded) text, [data-region-label]')].map((e) => e.getBoundingClientRect()),
-        ...[...document.querySelectorAll('.stack:not(.moving) .stack-box, .city-shape, .crossing-shape')].map((e) => e.getBoundingClientRect()),
-      ];
       let overlaps = 0;
       const names = [...document.querySelectorAll('[data-city-label]')].map((e) => e.textContent);
       const otherEls = [...document.querySelectorAll('[data-country-label]:not(.crowded) text, [data-region-label], .stack:not(.moving) .stack-box, .city-shape, .crossing-shape')];
+      const others = otherEls.map((e) => e.getBoundingClientRect());
       const detail: string[] = [];
       cities.forEach((a, i) => {
         cities.forEach((b, j) => { if (j > i && hit(a, b) > 6) { overlaps++; detail.push(`${names[i]}~${names[j]}`); } });

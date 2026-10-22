@@ -59,6 +59,7 @@ test('Tocar batallones propios y ajenos los selecciona', async ({ page }) => {
   // Batallón extranjero: se toca su región y luego el batallón en la lista de tropas.
   const p = await regionPoint(page, 'PY_OR');
   await page.touchscreen.tap(p.x, p.y);
+  await expect(page.locator('.region-card .rc-name')).toHaveText('Región Oriental');
   await page.locator('[data-action="troops"]').tap();
   await page.locator('.region-card .unit-card').first().tap();
   await expect(page.locator('.units-card .rc-owner')).toContainText('Paraguay');

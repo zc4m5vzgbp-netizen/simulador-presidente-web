@@ -7,6 +7,19 @@ export async function game<T>(page: Page, fn: string): Promise<T> {
 
 /** Punto de pantalla dentro de una región, visible y sin marcadores ni paneles encima. */
 export async function regionPoint(page: Page, regionId: string) {
+  // Esperar a que el mapa deje de cambiar de tamaño (paneles que se abren o cierran).
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    let last = '', stable = 0;
+    const tick = () => {
+      const svg = document.querySelector('svg.map');
+      const r = svg?.getBoundingClientRect();
+      const key = r ? `${r.width}|${r.height}|${svg!.getAttribute('viewBox')}` : '';
+      stable = key === last ? stable + 1 : 0;
+      last = key;
+      if (stable >= 4) resolve(); else requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }));
   return page.evaluate((id) => {
     const svg = document.querySelector('svg.map') as SVGSVGElement;
     const path = svg.querySelector(`path[data-region="${id}"]`) as SVGPathElement;

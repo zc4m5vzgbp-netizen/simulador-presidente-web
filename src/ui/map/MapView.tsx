@@ -96,11 +96,38 @@ function relationClass(state: GameState, owner: CountryId): 'mine' | 'enemy' | '
   return 'other';
 }
 
+interface Box { x0: number; y0: number; x1: number; y1: number }
+const overlap = (a: Box, b: Box) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) * Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
+const shift = (b: Box, dx: number, dy: number): Box => ({ x0: b.x0 + dx, y0: b.y0 + dy, x1: b.x1 + dx, y1: b.y1 + dy });
+
+/** Desplazamientos de prueba (en píxeles de pantalla) para colocar rótulos sin solapes. */
+const LABEL_CANDIDATES: [number, number][] = [[0, 0], [0, -30], [0, 30], [-48, 0], [48, 0], [0, -54], [0, 54], [-48, -30], [48, -30], [-48, 30], [48, 30], [-80, 0], [80, 0]];
+
+/**
+ * Coloca cada rótulo en el primer hueco libre (sin tocar batallones ni otros
+ * rótulos). Solo cambia dónde se dibuja el texto, nunca las unidades.
+ */
+function placeLabels<T extends { box: Box }>(items: T[], obstacles: Box[], k: number): (T & { dx: number; dy: number; crowded: boolean })[] {
+  const placed: Box[] = [];
+  return items.map((it) => {
+    let best = { dx: 0, dy: 0, score: Infinity };
+    for (const [px, py] of LABEL_CANDIDATES) {
+      const b = shift(it.box, px * k, py * k);
+      const score = [...obstacles, ...placed].reduce((sum, o) => sum + overlap(b, o), 0);
+      if (score < best.score) best = { dx: px * k, dy: py * k, score };
+      if (score === 0) break;
+    }
+    placed.push(shift(it.box, best.dx, best.dy));
+    return { ...it, dx: best.dx, dy: best.dy, crowded: best.score > 0 };
+  });
+}
+
 export function MapView({ state, selection, orderMode, layers, onToggleLayer, onTapRegion, onTapUnits, onTapEmpty }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [size, setSize] = useState({ w: 640, h: 360 });
   const [view, setView] = useState<View>(() => initialView(state.player, 360 / 640));
   const [layerMenu, setLayerMenu] = useState(false);
+  const [minimap, setMinimap] = useState(false); // oculto por defecto
   const [texture] = useState(reliefTexture);
   const fitted = useRef(false);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
@@ -209,6 +236,30 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
   const offsets: Record<string, number> = {};
   const show = (id: string) => layers[id] !== false;
 
+  // Posiciones de los marcadores estacionados (las mismas que se dibujan).
+  const stackItems = [...groups.values()].map((g) => {
+    const [ax, ay] = REGIONS[g.regionId].anchor;
+    const idx = offsets[g.regionId] ?? 0;
+    offsets[g.regionId] = idx + 1;
+    const x = ax + (idx === 0 ? 0 : (idx % 2 ? 1 : -1) * Math.ceil(idx / 2) * (tW + 4 * k));
+    const y = ay - 2 * k;
+    return { g, x, y, box: { x0: x - tW / 2 - 3 * k, y0: y - 3 * k, x1: x + tW / 2 + 3 * k, y1: y + tH + 3 * k } as Box };
+  });
+  const obstacles = show('units') ? stackItems.map((t) => t.box) : [];
+
+  const countryLabels = show('labels') && !zoomedIn ? placeLabels(COUNTRY_IDS.map((c) => {
+    const [x, y] = COUNTRY_LABELS[c];
+    const name = COUNTRY_DEFS[c].name.toUpperCase();
+    const w = Math.max(22, name.length * 8.2) * k;
+    return { c, x, y, name, box: { x0: x - w / 2, y0: y - 23 * k, x1: x + w / 2, y1: y + 10 * k } as Box };
+  }), obstacles, k) : [];
+
+  const regionLabels = show('labels') && zoomedIn ? placeLabels(Object.values(REGIONS).map((r) => {
+    const w = Math.max(30, r.name.length * 6) * k;
+    const x = r.anchor[0], y = r.anchor[1] + 28 * k;
+    return { r, x, y, box: { x0: x - w / 2, y0: y - 7 * k, x1: x + w / 2, y1: y + 7 * k } as Box };
+  }), obstacles, k) : [];
+
   function tile(key: string, x: number, y: number, owner: CountryId, count: number | null, extra: string, regionId: string, sel: boolean) {
     const rel = relationClass(state, owner);
     const w = count === null ? tH : tW;
@@ -307,28 +358,23 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
         </g>
 
         <g data-layer="labels-countries" pointerEvents="none">
-          {show('labels') && !zoomedIn && COUNTRY_IDS.map((c) => {
-            const [x, y] = COUNTRY_LABELS[c];
+          {countryLabels.map(({ c, x, y, name, dx, dy, crowded }) => {
             const fw = 22 * k;
             return (
-              <g key={c} className="country-tag">
-                <FlagSvg c={c} x={x - fw / 2} y={y - 22 * k} w={fw} />
-                <text x={x} y={y + 2 * k} className="label country-label" style={{ fontSize: 12 * k }}>{COUNTRY_DEFS[c].name.toUpperCase()}</text>
+              <g key={c} className={`country-tag${crowded ? ' crowded' : ''}`} data-country-label={c} transform={`translate(${dx} ${dy})`}>
+                {!crowded && <FlagSvg c={c} x={x - fw / 2} y={y - 22 * k} w={fw} />}
+                <text x={x} y={y + 2 * k} className="label country-label" style={{ fontSize: 12 * k }}>{name}</text>
               </g>
             );
           })}
         </g>
 
         <g data-layer="units">
-          {show('units') && [...groups.values()].map((g) => {
-            const [ax, ay] = REGIONS[g.regionId].anchor;
-            const idx = offsets[g.regionId] ?? 0;
-            offsets[g.regionId] = idx + 1;
-            const x = ax + (idx === 0 ? 0 : (idx % 2 ? 1 : -1) * Math.ceil(idx / 2) * (tW + 4 * k));
+          {show('units') && stackItems.map(({ g, x, y }) => {
             const sel = g.units.some((u) => selIds.includes(u.id));
             const training = g.units.every((u) => u.status === 'training');
             const fighting = g.units.some((u) => u.status === 'combat');
-            return tile(`${g.regionId}-${g.owner}`, x, ay - 2 * k, g.owner, g.units.length, `${training ? ' training' : ''}${fighting ? ' fighting' : ''}`, g.regionId, sel);
+            return tile(`${g.regionId}-${g.owner}`, x, y, g.owner, g.units.length, `${training ? ' training' : ''}${fighting ? ' fighting' : ''}`, g.regionId, sel);
           })}
           {show('units') && moving.map((u) => {
             const [x, y] = unitPos(u);
@@ -361,8 +407,8 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
         </g>
 
         <g data-layer="labels" pointerEvents="none">
-          {show('labels') && zoomedIn && Object.values(REGIONS).map((r) => (
-            <text key={r.id} x={r.anchor[0]} y={r.anchor[1] + 28 * k} className="label region-label" style={{ fontSize: 10.5 * k }}>{r.name}</text>
+          {regionLabels.filter((l) => !l.crowded).map(({ r, x, y, dx, dy }) => (
+            <text key={r.id} x={x + dx} y={y + dy} className="label region-label" data-region-label={r.id} style={{ fontSize: 10.5 * k }}>{r.name}</text>
           ))}
         </g>
 
@@ -374,28 +420,34 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
       </svg>
 
       <div className="map-corner">
-        <Minimap state={state} view={{ ...view }} viewH={h} onCenter={(cx, cy) => setView((v) => ({ ...v, x: cx - v.w / 2, y: cy - (v.w * size.h / size.w) / 2 }))} />
+        {minimap && (
+          <Minimap state={state} view={{ ...view }} viewH={h} onCenter={(cx, cy) => setView((v) => ({ ...v, x: cx - v.w / 2, y: cy - (v.w * size.h / size.w) / 2 }))} />
+        )}
         <div className="map-ctl" role="toolbar" aria-label="Controles del mapa">
+          <button type="button" className={`icon-btn${minimap ? ' on' : ''}`} data-action="minimap" aria-pressed={minimap}
+            aria-label={minimap ? 'Ocultar minimapa' : 'Mostrar minimapa'} title={minimap ? 'Ocultar minimapa' : 'Mostrar minimapa'} onClick={() => setMinimap((v) => !v)}>
+            <Icon name="map" />
+          </button>
           <button type="button" className={`icon-btn${layerMenu ? ' on' : ''}`} aria-label="Capas del mapa" aria-expanded={layerMenu} onClick={() => setLayerMenu((v) => !v)}><Icon name="layers" /></button>
           <button type="button" className="icon-btn" aria-label="Acercar" onClick={() => zoomButton(1 / 1.4)}><Icon name="plus" /></button>
           <button type="button" className="icon-btn" aria-label="Alejar" onClick={() => zoomButton(1.4)}><Icon name="minus" /></button>
           <button type="button" className="icon-btn" aria-label="Centrar en tu país" onClick={() => setView(initialView(state.player, size.h / size.w, size.w))}><Icon name="target" /></button>
         </div>
+        {layerMenu && (
+          <div className="layer-menu" role="dialog" aria-label="Capas del mapa">
+            <div className="layer-title">Capas del mapa</div>
+            {MAP_LAYERS.filter((l) => l.toggleable).map((l) => (
+              <label key={l.id} className={`layer-row${l.status === 'planned' ? ' planned' : ''}`} htmlFor={`layer-${l.id}`}>
+                <input id={`layer-${l.id}`} type="checkbox" disabled={l.status === 'planned'} checked={l.status === 'active' && layers[l.id] !== false}
+                  onChange={() => onToggleLayer(l.id)} />
+                <span>{l.label}</span>
+                {l.status === 'planned' && <Icon name="lock" size={13} className="soon" />}
+              </label>
+            ))}
+            <p className="layer-note">Con candado: capas previstas, aún sin datos.</p>
+          </div>
+        )}
       </div>
-      {layerMenu && (
-        <div className="layer-menu" role="dialog" aria-label="Capas del mapa">
-          <div className="layer-title">Capas del mapa</div>
-          {MAP_LAYERS.filter((l) => l.toggleable).map((l) => (
-            <label key={l.id} className={`layer-row${l.status === 'planned' ? ' planned' : ''}`} htmlFor={`layer-${l.id}`}>
-              <input id={`layer-${l.id}`} type="checkbox" disabled={l.status === 'planned'} checked={l.status === 'active' && layers[l.id] !== false}
-                onChange={() => onToggleLayer(l.id)} />
-              <span>{l.label}</span>
-              {l.status === 'planned' && <Icon name="lock" size={13} className="soon" />}
-            </label>
-          ))}
-          <p className="layer-note">Con candado: capas previstas, aún sin datos.</p>
-        </div>
-      )}
     </div>
   );
 }

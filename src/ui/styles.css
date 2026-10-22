@@ -119,6 +119,7 @@ select { max-width: 100%; }
 .tb-role { font-size: 0.78rem; color: var(--muted); }
 .war-text { color: var(--bad); font-weight: 700; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.08em; }
 .tb-cards { display: flex; gap: 6px; flex: 1 1 auto; min-width: 0; justify-content: center; overflow: hidden; }
+.tb-cards > * { flex-shrink: 0; }
 .tb-card, .tb-date-card {
   display: flex; align-items: center; gap: 7px; flex: none;
   height: 44px; padding: 0 10px; border-radius: 8px;
@@ -156,7 +157,19 @@ select { max-width: 100%; }
   .tb-stab-bar { width: 42px; }
 }
 @media (max-width: 860px) { .tb-trend { display: none; } .tb-date-card .tb-card-icon { display: none; } .tb-card-icon { width: 18px; height: 18px; } }
-@media (max-width: 720px) { .tb-card-icon { display: none; } .tb-flag { width: 36px; } .speed button { min-width: 36px; } }
+@media (max-width: 720px) {
+  .tb-card-icon { display: none; } .tb-flag { width: 34px; }
+  .topbar { gap: 5px; }
+  .tb-cards { justify-content: flex-start; gap: 4px; }
+  .tb-card, .tb-date-card { padding: 0 7px; }
+  .tb-card-label { font-size: 0.62rem; }
+  .tb-card-value, .tb-date { font-size: 0.86rem; }
+  .speed button { min-width: 30px; padding: 0 5px; }
+  .tb-btn { width: 38px; height: 38px; min-height: 38px; }
+  .tb-stab-bar { display: none; }
+  .tb-date-card { padding: 0 6px; }
+  .tb-controls { gap: 4px; }
+}
 
 .game-body {
   display: grid;
@@ -217,6 +230,7 @@ select { max-width: 100%; }
 .country-edge.player { stroke: #f2d060; }
 .label { text-anchor: middle; dominant-baseline: middle; font-family: var(--font-display); fill: #f4f7fa; paint-order: stroke; stroke: rgba(3, 8, 14, 0.85); stroke-width: 0.3em; stroke-linejoin: round; }
 .country-label { font-weight: 700; letter-spacing: 0.06em; }
+.country-tag.crowded { opacity: 0.6; }
 .region-label { font-weight: 600; letter-spacing: 0.02em; fill: #dfe7ee; }
 .route { fill: none; stroke: #f2d060; stroke-opacity: 0.6; stroke-linecap: round; pointer-events: none; }
 .route.sel { stroke-opacity: 1; }
@@ -244,16 +258,14 @@ select { max-width: 100%; }
 .mini-country { fill-opacity: 0.55; stroke: rgba(255, 255, 255, 0.35); stroke-width: 3; }
 .mini-country.me { fill-opacity: 0.9; stroke: #f2d060; stroke-width: 6; }
 .mini-view { fill: rgba(255, 255, 255, 0.08); stroke: #ffffff; stroke-width: 9; }
-@media (max-height: 520px) { .minimap { width: 74px; height: 94px; } .map-ctl .icon-btn { width: 38px; height: 38px; min-height: 38px; } .map-ctl { gap: 3px; } }
-@media (max-height: 340px) { .minimap { display: none; } }
+@media (max-height: 520px) { .minimap { width: 78px; height: 100px; } .map-ctl .icon-btn { width: 38px; height: 38px; min-height: 38px; } .map-ctl { gap: 3px; } }
 .map-ctl { display: flex; flex-direction: column; gap: 4px; }
 .map-ctl .icon-btn { width: 40px; height: 40px; background: rgba(13, 24, 37, 0.92); border-color: var(--line-strong); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35); }
 .layer-menu {
-  position: absolute; left: 160px; bottom: 8px; z-index: 4; width: 230px; max-height: calc(100% - 16px); overflow-y: auto;
+  width: 230px; max-height: calc(100vh - 140px); max-height: calc(100dvh - 140px); overflow-y: auto; align-self: flex-end;
   padding: 8px; border-radius: 10px; background: rgba(14, 24, 36, 0.97); border: 1px solid var(--line-strong); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
-@media (max-height: 520px) { .layer-menu { left: 128px; } }
-@media (max-height: 340px) { .layer-menu { left: 54px; } }
+
 .layer-title { font-family: var(--font-display); font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding: 2px 4px 6px; }
 .layer-row { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 4px; border-radius: 4px; }
 .layer-row input { width: 18px; height: 18px; accent-color: var(--gold); }
@@ -268,11 +280,13 @@ select { max-width: 100%; }
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 .order-banner button { background: var(--gold-ink); color: var(--gold); border: 0; }
-.side-expand {
+.side-handle {
   position: absolute; right: 0; top: 50%; transform: translateY(-50%); z-index: 4;
-  width: 30px; height: 64px; min-height: 64px; padding: 0; border-radius: 6px 0 0 6px;
-  background: var(--surface); border-color: var(--line-strong); border-right: 0; color: var(--gold);
+  width: 28px; height: 72px; min-height: 72px; padding: 0; border-radius: 8px 0 0 8px;
+  background: rgba(14, 24, 36, 0.94); border: 1px solid var(--line-strong); border-right: 0; color: var(--gold);
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.35);
 }
+.side-handle::before { content: ""; position: absolute; inset: -6px -4px -6px -14px; } /* zona táctil ampliada */
 .toasts { position: absolute; left: 50%; transform: translateX(-50%); top: 52px; z-index: 8; display: grid; gap: 6px; pointer-events: none; justify-items: center; width: min(440px, calc(100% - 20px)); }
 .toast { padding: 7px 12px; border-radius: 6px; background: var(--surface-3); border: 1px solid var(--line-strong); font-size: 0.86rem; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4); animation: toast-in 0.22s ease; }
 .toast.err { background: #3a1611; border-color: var(--bad); }
@@ -510,3 +524,9 @@ table.stats { border-collapse: collapse; width: 100%; font-size: 0.84rem; }
 
 .tab-short { display: none; }
 @media (max-width: 1000px) { .ctabs .tab-full { display: none; } .ctabs .tab-short { display: inline; } }
+/* Pantallas muy estrechas (iPhone SE de 568 px): el buzón sigue accesible desde
+   Diplomacia (con el mismo contador) y la fecha pierde su marco. */
+@media (max-width: 600px) {
+  .tb-btn[data-action="inbox"] { display: none; }
+  .tb-date-card { border: 0; background: none; padding: 0 2px; }
+}

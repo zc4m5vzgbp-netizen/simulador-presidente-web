@@ -100,9 +100,10 @@ export function GameScreen({ state }: { state: GameState }) {
             {controller.toasts.map((t) => <div key={t.id} className={`toast${t.ok ? '' : ' err'}`}>{t.text}</div>)}
           </div>
 
-          {!sideOpen && (
-            <button type="button" className="side-expand" aria-label="Mostrar panel de información" onClick={() => setCollapsed(false)}>
-              <Icon name="chevronLeft" size={18} />
+          {section === 'map' && (
+            <button type="button" className={`side-handle${sideOpen ? '' : ' closed'}`} data-action="toggle-panel" aria-expanded={sideOpen}
+              aria-label={sideOpen ? 'Contraer panel de información' : 'Mostrar panel de información'} onClick={() => setCollapsed(sideOpen)}>
+              <Icon name={sideOpen ? 'chevronRight' : 'chevronLeft'} size={18} />
             </button>
           )}
         </main>

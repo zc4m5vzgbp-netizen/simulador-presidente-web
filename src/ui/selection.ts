@@ -7,7 +7,11 @@ export type Selection =
   | { kind: 'country'; country: CountryId }
   | { kind: 'units'; regionId: string; owner: CountryId; unitIds: string[] }
   | { kind: 'city'; cityId: string }
-  | { kind: 'crossing'; crossingId: string };
+  | { kind: 'crossing'; crossingId: string }
+  /** Estado/provincia real (Atlas), con la región del juego donde se tocó. */
+  | { kind: 'state'; stateId: string; regionId: string }
+  /** Instalación cartográfica (aeropuerto, puerto; preparada para bases). */
+  | { kind: 'facility'; facilityId: string };
 
 export const NO_SELECTION: Selection = { kind: 'none' };
 

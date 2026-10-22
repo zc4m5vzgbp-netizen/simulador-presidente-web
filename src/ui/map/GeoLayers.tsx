@@ -77,7 +77,9 @@ export function cityLabelItems(cities: City[], k: number) {
       const r = cityRadius(c) * k;
       // Posición base: a la derecha del icono; placeLabels prueba otras.
       const x = c.xy[0] + r + 3 * k + w / 2, y = c.xy[1];
-      return { c, x, y, w, fs, box: { x0: x - w / 2, y0: y - 7 * k, x1: x + w / 2, y1: y + 7 * k } as Box };
+      // Alto generoso: algunas fuentes de sustitución tienen ascendentes mayores.
+      const hh = (fs * 0.75 + 1) * k;
+      return { c, x, y, w, fs, box: { x0: x - w / 2, y0: y - hh, x1: x + w / 2, y1: y + hh } as Box };
     });
 }
 

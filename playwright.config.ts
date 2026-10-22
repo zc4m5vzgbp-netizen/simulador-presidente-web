@@ -15,6 +15,8 @@ const landscape = [
 export default defineConfig({
   testDir: 'tests/e2e',
   timeout: 90_000,
+  // En CI, cada fallo aparece como anotación en GitHub.
+  reporter: process.env.CI ? [['github'], ['list']] : 'list',
   use: { baseURL: 'http://127.0.0.1:4173' },
   webServer: {
     command: 'python3 -m http.server 4173 --bind 127.0.0.1 --directory dist',

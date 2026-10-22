@@ -8,10 +8,12 @@
     "build:artifact": "node scripts/build.mjs artifact",
     "typecheck": "tsc --noEmit",
     "typecheck:engine": "tsc --noEmit -p tsconfig.engine.json",
-    "test": "node --import tsx --test tests/engine.test.ts",
+    "test": "node --import tsx --test tests/engine.test.ts tests/geo.test.ts tests/map-bounds.test.ts tests/atlas.test.ts tests/scale.test.ts",
     "test:e2e": "playwright test",
     "gen:map": "tsx scripts/generate-map.ts",
-    "serve": "python3 -m http.server 4173 --directory dist"
+    "serve": "python3 -m http.server 4173 --directory dist",
+    "gen:geo": "tsx scripts/generate-geo.ts",
+    "gen:atlas": "tsx scripts/generate-atlas.ts"
   },
   "dependencies": {
     "react": "^19.2.0",

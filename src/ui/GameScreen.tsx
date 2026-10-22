@@ -55,7 +55,7 @@ export function GameScreen({ state }: { state: GameState }) {
     setOrderMode(true);
   }
 
-  function onTapRegion(regionId: string) {
+  function onTapRegion(regionId: string, stateId?: string) {
     if (orderMode && orderIds.length) {
       controller.actBatch(
         orderIds.map((id) => ({ type: 'move' as const, unitId: id, target: regionId })),
@@ -64,7 +64,8 @@ export function GameScreen({ state }: { state: GameState }) {
       setOrderMode(false);
       return;
     }
-    select({ kind: 'region', regionId });
+    // Atlas: a escala Nación/Región se selecciona el estado real bajo el dedo (su ficha incluye la región del juego).
+    select(stateId ? { kind: 'state', stateId, regionId } : { kind: 'region', regionId });
   }
 
   function onTapUnits(regionId: string, owner: CountryId) {
@@ -87,6 +88,10 @@ export function GameScreen({ state }: { state: GameState }) {
           <MapView state={state} selection={selection} orderMode={orderMode} layers={layers}
             onToggleLayer={(id) => setLayers((l) => ({ ...l, [id]: !(l[id] !== false) }))}
             onTapRegion={onTapRegion} onTapUnits={onTapUnits}
+            onTapCity={(cityId) => select({ kind: 'city', cityId })}
+            onTapCrossing={(crossingId) => select({ kind: 'crossing', crossingId })}
+            onTapFacility={(facilityId) => select({ kind: 'facility', facilityId })}
+            onTapArmy={(country) => select({ kind: 'country', country })}
             onTapEmpty={() => { setOrderMode(false); setSelection(NO_SELECTION); }} />
 
           {orderMode && (

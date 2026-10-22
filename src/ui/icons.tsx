@@ -2,6 +2,10 @@
 import type { ReactNode } from 'react';
 
 const PATHS: Record<string, ReactNode> = {
+  city: <><path d="M3 20.5h18M5 20.5V10l4-2.5v13M9 20.5V4.5h6.5v16M15.5 20.5v-9H19v9" /><path d="M11.5 8h1.5M11.5 11.5h1.5M11.5 15h1.5" /></>,
+  crossing: <><path d="M5 21V4M3 21h4" /><path d="M5 7.5h15.5v3.5H5" /><path d="M9 7.5 11 11M13.5 7.5l2 3.5M18 7.5l2 3.5" /></>,
+  ferry: <><path d="M2.5 18c1.6 1.3 3.2 1.3 4.8 0s3.2-1.3 4.8 0 3.2 1.3 4.8 0 3.2-1.3 4.8 0" /><path d="M5 15l1.2-5h11.6L19 15M9 10V6.5h6V10" /></>,
+  road: <><path d="M8.5 3 5 21M15.5 3 19 21" /><path d="M12 4.5v2.5M12 10.5V13M12 16.5V19" /></>,
   map: <><path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z" /><path d="M9 4v13.5M15 6.5V20" /></>,
   economy: <><path d="M4 20V10M10 20V5M16 20v-7M22 20H2" /></>,
   diplomacy: <><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17M12 3.5c2.6 2.6 2.6 14.4 0 17M12 3.5c-2.6 2.6-2.6 14.4 0 17" /></>,
@@ -33,6 +37,10 @@ const PATHS: Record<string, ReactNode> = {
   globe: <><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17M12 3.5c2.6 2.6 2.6 14.4 0 17M12 3.5c-2.6 2.6-2.6 14.4 0 17" /></>,
   handshake: <><path d="M2.5 9.5 6 6l3.5 1.5L12 6.5l3 1L18 6l3.5 3.5" /><path d="M2.5 9.5 7 15l2 1.5 1.5-1 1.5 1.5 1.5-1 1.5 1 1.5-1.5L21.5 9.5" /><path d="m9.5 7.5-2.5 3 1.5 1.5 3.5-3 4 3.5" /></>,
   tank: <><rect x="3" y="12.5" width="18" height="6" rx="3" /><path d="M6 12.5V10h9l2 2.5M11 10V8h9" /><circle cx="7" cy="15.5" r="1" /><circle cx="12" cy="15.5" r="1" /><circle cx="17" cy="15.5" r="1" /></>,
+  airport: <path d="M12 3.5c.9 0 1.4.8 1.4 1.8v4.4l6.6 3.8v2l-6.6-1.9v3.6l2 1.5v1.6L12 19.4l-3.4.9v-1.6l2-1.5v-3.6L4 15.5v-2l6.6-3.8V5.3c0-1 .5-1.8 1.4-1.8z" />,
+  port: <><circle cx="12" cy="5" r="1.8" /><path d="M12 6.8v13.7M8 10h8M4.5 13.5c.6 4 3.6 7 7.5 7s6.9-3 7.5-7" /></>,
+  state: <><path d="M4 6.5 9.5 4l5 2.5L20 5l-1 7 1.5 6.5-6 1.5-5.5-2-5 1.5L5.5 12z" strokeDasharray="2.2 1.8" /></>,
+  info: <><circle cx="12" cy="12" r="8.5" /><path d="M12 11v5.5M12 7.6v.2" /></>,
   chevronUp: <path d="m5 15 7-7 7 7" />,
   chevronDown: <path d="m5 9 7 7 7-7" />,
   up: <path d="M12 19V5M6 11l6-6 6 6" />,

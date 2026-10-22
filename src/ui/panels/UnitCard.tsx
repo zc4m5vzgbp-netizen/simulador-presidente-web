@@ -3,12 +3,18 @@ import { REGIONS } from '../../engine/world';
 import { unitPower } from '../../engine/military';
 import { Meter } from '../widgets';
 import { int, STATUS_LABEL } from '../format';
+import { atWar, sameSide } from '../../engine/war';
+import { MilitarySymbolIcon } from '../military/MilitarySymbol';
+import { UNIT_ECHELON, affiliationOf, unitCategory } from '../military/symbology';
 
 export function UnitCard({ state, u, selected, onToggle }: { state: GameState; u: Unit; selected?: boolean; onToggle?: () => void }) {
   const dest = u.destination ? REGIONS[u.destination].name : null;
+  const me = state.player;
+  const aff = affiliationOf(u.owner === me ? 'mine' : atWar(state, u.owner, me) ? 'enemy' : sameSide(state, u.owner, me) ? 'ally' : 'other');
   return (
     <button type="button" className={`unit-card${selected ? ' selected' : ''}`} onClick={onToggle} disabled={!onToggle} data-unit-id={u.id}>
       <span className="unit-top">
+        <MilitarySymbolIcon category={unitCategory(u)} affiliation={aff} echelon={UNIT_ECHELON} size={26} />
         <span className="unit-name">{u.name}</span>
         <span className={`chip st-${u.status}`}>{STATUS_LABEL[u.status]}</span>
       </span>

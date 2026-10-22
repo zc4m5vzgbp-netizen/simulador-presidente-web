@@ -1,0 +1,31 @@
+{
+  "name": "simulador-presidente-web",
+  "private": true,
+  "version": "0.1.0-beta",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:artifact": "node scripts/build.mjs artifact",
+    "typecheck": "tsc --noEmit",
+    "typecheck:engine": "tsc --noEmit -p tsconfig.engine.json",
+    "test": "node --import tsx --test tests/engine.test.ts",
+    "test:e2e": "playwright test",
+    "gen:map": "tsx scripts/generate-map.ts",
+    "serve": "python3 -m http.server 4173 --directory dist"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "d3-delaunay": "^6.0.4",
+    "d3-geo": "^3.1.1",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0"
+  }
+}

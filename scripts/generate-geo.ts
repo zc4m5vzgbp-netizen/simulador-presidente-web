@@ -312,7 +312,7 @@ for (const feature of roads.features) {
     networkCount++;
   }
 }
-console.log(`Red vial cartográfica: ${networkCount} segmentos (frente a ${count(roadsOut)} corredores seleccionados)`);
+console.log(`Red vial cartográfica: ${networkCount} segmentos (frente a ${Object.values(roadsOut).reduce((n, list) => n + list.length, 0)} corredores seleccionados)`);
 
 const out = {
   generatedFrom: {

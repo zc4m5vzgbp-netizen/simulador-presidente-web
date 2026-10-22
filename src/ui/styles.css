@@ -250,8 +250,8 @@ select { max-width: 100%; }
 .battle path { stroke: #fff; stroke-linecap: round; }
 .occ-track { fill: #06121e; opacity: 0.85; }
 /* ---------- Cartografía estratégica (MAP-001) ---------- */
-.road-casing { fill: none; stroke: rgba(4, 9, 15, 0.55); stroke-width: 3.2px; stroke-linejoin: round; stroke-linecap: round; }
-.road-line { fill: none; stroke: #e0c27e; stroke-opacity: 0.8; stroke-width: 1.4px; stroke-linejoin: round; stroke-linecap: round; }
+.road-casing { fill: none; stroke: rgba(4, 9, 15, 0.45); stroke-width: 2.4px; stroke-linejoin: round; stroke-linecap: round; }
+.road-line { fill: none; stroke: #e0c27e; stroke-opacity: 0.58; stroke-width: 1.05px; stroke-linejoin: round; stroke-linecap: round; }
 .crossing-link { stroke: #5cc8ec; stroke-width: 1.6px; stroke-dasharray: 4 3; stroke-linecap: round; pointer-events: none; }
 .hit { fill: transparent; }
 .crossing { cursor: pointer; }

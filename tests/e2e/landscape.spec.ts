@@ -224,18 +224,21 @@ test('Los marcadores se colorean según la relación: propios, enemigos y otros'
   expect(await page.locator('.stack.other').count()).toBeGreaterThan(0);
 });
 
-test('Capas: las disponibles se pueden ocultar y las futuras aparecen como próximamente', async ({ page }) => {
+test('Capas: las disponibles se pueden ocultar, las parciales se identifican y las futuras aparecen como próximamente', async ({ page }) => {
   await startGame(page, 'ECU');
   expect(await page.locator('.stack').count()).toBeGreaterThan(0);
   await page.getByRole('button', { name: 'Capas del mapa' }).tap();
-  await expect(page.locator('#layer-ports')).toBeDisabled();
-  await expect(page.locator('.layer-row.planned')).toHaveCount(3);
+  // ATLAS-001: puertos y aeropuertos tienen datos reales pero no exhaustivos → «Parcial».
+  await expect(page.locator('.layer-row.partial')).toHaveCount(2);
+  await expect(page.locator('.layer-row.partial .layer-badge').first()).toHaveText('Parcial');
+  await expect(page.locator('#layer-bases')).toBeDisabled();
+  await expect(page.locator('.layer-row.planned')).toHaveCount(1);
   await page.locator('label[for="layer-units"]').tap();
   await expect(page.locator('.stack')).toHaveCount(0);
   await page.locator('label[for="layer-units"]').tap();
   expect(await page.locator('.stack').count()).toBeGreaterThan(0);
   // Las capas futuras existen en el SVG pero vacías (sin datos inventados)
-  expect(await page.locator('g[data-layer="ports"] > *').count()).toBe(0);
+  expect(await page.locator('g[data-layer="bases"] > *').count()).toBe(0);
 });
 
 test('Una partida guardada con la versión publicada carga en la nueva interfaz', async ({ page }) => {

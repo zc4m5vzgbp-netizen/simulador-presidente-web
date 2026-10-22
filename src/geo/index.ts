@@ -65,6 +65,7 @@ interface GeoFile {
   cities: Record<string, City[]>;
   crossings: Record<string, Crossing[]>;
   roads: Record<string, Road[]>;
+  roadNetwork?: string;
 }
 
 const geo = data as unknown as GeoFile;
@@ -75,6 +76,8 @@ export const GEO_BY_COUNTRY = geo;
 export const CITIES: City[] = Object.values(geo.cities).flat();
 export const CROSSINGS: Crossing[] = Object.values(geo.crossings).flat();
 export const ROADS: Road[] = Object.values(geo.roads).flat();
+/** Red cartográfica completa; generada desde Natural Earth. */
+export const ROAD_NETWORK = geo.roadNetwork ?? '';
 
 const cityIndex = new Map(CITIES.map((c) => [c.id, c]));
 const crossingIndex = new Map(CROSSINGS.map((c) => [c.id, c]));

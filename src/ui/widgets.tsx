@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from 'react';
 import type { CountryId } from '../engine/types';
 import { COUNTRY_DEFS } from '../data/countries';
+import { FlagIcon } from './flags';
 
-export function Flag({ c, size = 12 }: { c: CountryId; size?: number }) {
-  return <span className="flag" style={{ background: COUNTRY_DEFS[c].color, width: size, height: size * 0.72 }} aria-hidden="true" />;
+export function Flag({ c, size = 16 }: { c: CountryId; size?: number }) {
+  return <FlagIcon c={c} size={Math.max(16, size)} />;
 }
 
 export function CountryTag({ c }: { c: CountryId }) {

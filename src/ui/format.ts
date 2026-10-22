@@ -14,6 +14,11 @@ export function money(bn: number): string {
   return `${sign}US$ ${nf0.format(v * 1000)} M`;
 }
 
+/** Versión compacta para la barra superior. */
+export function moneyShort(bn: number): string {
+  return money(bn).replace('US$ ', '$');
+}
+
 export function pct(v: number, digits = 1): string {
   return `${v.toLocaleString('es-ES', { maximumFractionDigits: digits, minimumFractionDigits: digits })} %`;
 }

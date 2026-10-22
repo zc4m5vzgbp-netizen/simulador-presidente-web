@@ -1,164 +1,143 @@
+/**
+ * Pantalla de juego horizontal: barra superior + navegación lateral (izquierda)
+ * + mapa estratégico (centro) + panel contextual o de sección (derecha).
+ */
 import { useState } from 'react';
 import type { CountryId, GameState } from '../engine/types';
 import { formatDate } from '../engine/core';
-import { SPEEDS, type SpeedId } from '../engine/time';
 import { REGIONS } from '../engine/world';
-import { warsOf } from '../engine/war';
-import { COUNTRY_DEFS } from '../data/countries';
 import { controller } from './controller';
-import { MapView, type MapSelection } from './MapView';
-import { RegionPanel } from './panels/RegionPanel';
+import { MapView } from './map/MapView';
+import { defaultVisibility, type LayerVisibility } from './map/layers';
+import { TopBar } from './layout/TopBar';
+import { NavRail, SECTIONS, type SectionId } from './layout/NavRail';
+import { ContextPanel } from './layout/ContextPanel';
 import { EconomyPanel } from './panels/EconomyPanel';
 import { DiplomacyPanel } from './panels/DiplomacyPanel';
 import { ArmyPanel } from './panels/ArmyPanel';
 import { GamePanel } from './panels/GamePanel';
-import { Flag } from './widgets';
-import { money, int } from './format';
-
-type Tab = 'map' | 'economy' | 'diplomacy' | 'army' | 'game';
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'map', label: 'Mapa' },
-  { id: 'economy', label: 'Economía' },
-  { id: 'diplomacy', label: 'Diplomacia' },
-  { id: 'army', label: 'Ejército' },
-  { id: 'game', label: 'Partida' },
-];
-
-function SpeedIcon({ id }: { id: SpeedId }) {
-  if (id === 0) return <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="3" y="2.5" width="3.5" height="11" fill="currentColor" /><rect x="9.5" y="2.5" width="3.5" height="11" fill="currentColor" /></svg>;
-  const n = id === 1 ? 1 : id === 2 ? 2 : 3;
-  const w = 7 * n + 2;
-  return (
-    <svg viewBox={`0 0 ${w} 16`} width={w} height="14" aria-hidden="true">
-      {Array.from({ length: n }, (_, i) => <path key={i} d={`M${1 + i * 7} 2.5 L${8 + i * 7} 8 L${1 + i * 7} 13.5 Z`} fill="currentColor" />)}
-    </svg>
-  );
-}
+import { StatsPanel } from './panels/StatsPanel';
+import { FuturePanel } from './panels/FuturePanel';
+import { cleanSelection, NO_SELECTION, type Selection } from './selection';
+import { Icon } from './icons';
 
 export function GameScreen({ state }: { state: GameState }) {
-  const [tab, setTab] = useState<Tab>('map');
-  const [sel, setSel] = useState<MapSelection>({ regionId: null, unitIds: [] });
+  const [section, setSection] = useState<SectionId>('map');
+  const [rawSel, setSelection] = useState<Selection>(NO_SELECTION);
   const [orderMode, setOrderMode] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [layers, setLayers] = useState<LayerVisibility>(defaultVisibility);
+  const [diploCountry, setDiploCountry] = useState<CountryId | null>(null);
+  const selection = cleanSelection(state, rawSel);
   const me = state.player;
-  const c = state.countries[me];
-  const speed = controller.clock.speed;
   const inbox = state.proposals.filter((p) => p.to === me).length;
-  const atWarNow = warsOf(state, me).length > 0;
-  const latest = [...state.log].reverse().find((l) => l.countries.includes(me) || l.kind === 'war');
-  const validUnits = sel.unitIds.filter((id) => state.units[id]?.owner === me);
+  const orderIds = selection.kind === 'units' && selection.owner === me
+    ? selection.unitIds.filter((id) => { const u = state.units[id]; return u && u.status !== 'training' && u.status !== 'retreating'; })
+    : [];
 
-  function startOrder(ids: string[]) {
+  function select(s: Selection) {
+    setSelection(s);
+    setOrderMode(false);
+    setCollapsed(false);
+    if (section !== 'map') setSection('map');
+  }
+
+  function openSection(id: SectionId, country?: CountryId) {
+    setDiploCountry(country ?? null);
+    setSection(id);
+    setOrderMode(false);
+  }
+
+  function startOrder(regionId: string, ids: string[]) {
     if (!ids.length) return;
-    setSel((s) => ({ ...s, unitIds: ids }));
+    setSelection({ kind: 'units', regionId, owner: me, unitIds: ids });
+    setSection('map');
     setOrderMode(true);
-    setTab('map');
   }
 
   function onTapRegion(regionId: string) {
-    if (orderMode && validUnits.length) {
+    if (orderMode && orderIds.length) {
       controller.actBatch(
-        validUnits.map((id) => ({ type: 'move' as const, unitId: id, target: regionId })),
+        orderIds.map((id) => ({ type: 'move' as const, unitId: id, target: regionId })),
         (n) => `${n} ${n > 1 ? 'batallones' : 'batallón'} en marcha hacia ${REGIONS[regionId].name}.`,
       );
       setOrderMode(false);
       return;
     }
-    setOrderMode(false);
-    setSel((s) => ({ regionId, unitIds: s.regionId === regionId ? s.unitIds : [] }));
+    select({ kind: 'region', regionId });
   }
 
   function onTapUnits(regionId: string, owner: CountryId) {
-    if (owner === me) {
-      const ids = Object.values(state.units)
-        .filter((u) => u.owner === me && u.regionId === regionId && u.status !== 'training' && u.status !== 'retreating')
-        .map((u) => u.id);
-      setSel({ regionId, unitIds: ids });
-      if (ids.length) setOrderMode(true);
-    } else {
-      setSel({ regionId, unitIds: [] });
-      setOrderMode(false);
-    }
+    const ids = Object.values(state.units).filter((u) => u.owner === owner && u.regionId === regionId).map((u) => u.id);
+    select(ids.length ? { kind: 'units', regionId, owner, unitIds: ids } : { kind: 'region', regionId });
   }
 
-  function focusUnit(id: string) {
-    const u = state.units[id];
-    if (!u) return;
-    setSel({ regionId: u.regionId, unitIds: [id] });
-    setTab('map');
-  }
-
-  const panelOpen = tab !== 'map' || !!sel.regionId;
+  const sectionDef = SECTIONS.find((s) => s.id === section);
+  const sideTitle = section === 'game' ? { title: 'Partida', subtitle: 'Guardar, cargar y noticias' }
+    : { title: sectionDef?.label ?? '', subtitle: sectionDef?.available ? 'Sección' : 'En desarrollo' };
+  const sideOpen = section !== 'map' || !collapsed;
 
   return (
-    <div className={`game${atWarNow ? ' wartime' : ''}`}>
-      <header className="topbar">
-        <div className="tb-row">
-          <div className="tb-country"><Flag c={me} size={16} /><span>{COUNTRY_DEFS[me].name}</span></div>
-          <div className="tb-date" aria-live="polite" data-testid="date">{formatDate(state.hour, true)}</div>
-        </div>
-        <div className="tb-row">
-          <div className="speed" role="group" aria-label="Velocidad">
-            {SPEEDS.map((s) => (
-              <button key={s.id} type="button" className={speed === s.id ? 'on' : ''} aria-pressed={speed === s.id}
-                aria-label={s.label} title={s.label} data-speed={s.id} onClick={() => controller.setSpeed(s.id)}>
-                <SpeedIcon id={s.id} />
+    <div className="game">
+      <TopBar state={state} optionsOpen={section === 'game'} onOptions={() => openSection(section === 'game' ? 'map' : 'game')} onInbox={() => openSection('diplomacy')} />
+      <div className={`game-body${section !== 'map' ? ' wide' : ''}${sideOpen ? '' : ' collapsed'}`}>
+        <NavRail active={section === 'game' ? 'map' : section} onSelect={(id) => openSection(id)} badges={{ diplomacy: inbox }} />
+
+        <main className="stage">
+          <MapView state={state} selection={selection} orderMode={orderMode} layers={layers}
+            onToggleLayer={(id) => setLayers((l) => ({ ...l, [id]: !(l[id] !== false) }))}
+            onTapRegion={onTapRegion} onTapUnits={onTapUnits}
+            onTapEmpty={() => { setOrderMode(false); setSelection(NO_SELECTION); }} />
+
+          {orderMode && (
+            <div className="order-banner" role="status">
+              <span>Toca la región de destino · {orderIds.length} {orderIds.length > 1 ? 'batallones' : 'batallón'}</span>
+              <button type="button" className="small" onClick={() => setOrderMode(false)}>Cancelar</button>
+            </div>
+          )}
+
+          <div className="toasts" aria-live="polite">
+            {controller.toasts.map((t) => <div key={t.id} className={`toast${t.ok ? '' : ' err'}`}>{t.text}</div>)}
+          </div>
+
+          {section === 'map' && (
+            <button type="button" className={`side-handle${sideOpen ? '' : ' closed'}`} data-action="toggle-panel" aria-expanded={sideOpen}
+              aria-label={sideOpen ? 'Contraer panel de información' : 'Mostrar panel de información'} onClick={() => setCollapsed(sideOpen)}>
+              <Icon name={sideOpen ? 'chevronRight' : 'chevronLeft'} size={18} />
+            </button>
+          )}
+        </main>
+
+        {sideOpen && (
+          <aside className={`side${section === 'map' ? ' cards-mode' : ''}`} data-testid="side" aria-label="Información">
+            {section !== 'map' && <header className="side-head">
+              <div className="side-titles">
+                <span className="side-sub">{sideTitle.subtitle}</span>
+                <h2 className="side-title">{sideTitle.title}</h2>
+              </div>
+              <button type="button" className="icon-btn" aria-label="Volver al mapa" onClick={() => openSection('map')}>
+                <Icon name="close" />
               </button>
-            ))}
-          </div>
-          <div className="tb-stats">
-            <span title="Reservas"><small>Reservas</small>{money(c.reserves)}</span>
-            <span title="Estabilidad" className={c.stability < 30 ? 'bad-text' : ''}><small>Estab.</small>{int(c.stability)}</span>
-          </div>
-        </div>
-        {latest && <div className="ticker" key={`${latest.hour}${latest.text}`}>{latest.text}</div>}
-      </header>
-
-      <main className="stage">
-        <MapView state={state} selection={{ regionId: sel.regionId, unitIds: validUnits }} orderMode={orderMode}
-          onTapRegion={onTapRegion} onTapUnits={onTapUnits}
-          onTapEmpty={() => { setOrderMode(false); setSel({ regionId: null, unitIds: [] }); }} />
-
-        {orderMode && (
-          <div className="order-banner" role="status">
-            <span>Toca la región de destino para {validUnits.length} {validUnits.length > 1 ? 'batallones' : 'batallón'}</span>
-            <button type="button" className="small" onClick={() => setOrderMode(false)}>Cancelar</button>
-          </div>
-        )}
-
-        {panelOpen && (
-          <div className={`sheet${tab === 'map' ? ' compact' : ''}`} data-testid="sheet">
-            <div className="sheet-handle">
-              <span className="sheet-title">{tab === 'map' ? 'Región' : TABS.find((t) => t.id === tab)!.label}</span>
-              <button type="button" className="ghost small" aria-label="Cerrar panel"
-                onClick={() => { if (tab === 'map') setSel({ regionId: null, unitIds: [] }); else setTab('map'); }}>Cerrar</button>
-            </div>
-            <div className="sheet-scroll">
-              {tab === 'map' && sel.regionId && (
-                <RegionPanel state={state} regionId={sel.regionId} selectedUnits={validUnits}
-                  setSelectedUnits={(ids) => setSel((s) => ({ ...s, unitIds: ids }))} startOrder={startOrder} />
+            </header>}
+            <div className="side-scroll">
+              {section === 'map' && (
+                <ContextPanel state={state} selection={selection} setSelection={select} startOrder={startOrder} openSection={openSection} onCollapse={() => setCollapsed(true)} />
               )}
-              {tab === 'economy' && <EconomyPanel state={state} />}
-              {tab === 'diplomacy' && <DiplomacyPanel state={state} />}
-              {tab === 'army' && <ArmyPanel state={state} onFocusUnit={focusUnit} />}
-              {tab === 'game' && <GamePanel state={state} />}
+              {section === 'economy' && <EconomyPanel state={state} />}
+              {section === 'diplomacy' && <DiplomacyPanel key={diploCountry ?? 'all'} state={state} initialCountry={diploCountry} />}
+              {section === 'army' && (
+                <ArmyPanel state={state} onFocusUnit={(id) => {
+                  const u = state.units[id];
+                  if (u) select({ kind: 'units', regionId: u.regionId, owner: me, unitIds: [id] });
+                }} />
+              )}
+              {section === 'stats' && <StatsPanel state={state} onPick={(c) => select({ kind: 'country', country: c })} />}
+              {(section === 'government' || section === 'research' || section === 'espionage') && <FuturePanel section={section} />}
+              {section === 'game' && <GamePanel state={state} />}
             </div>
-          </div>
+          </aside>
         )}
-
-        <div className="toasts" aria-live="polite">
-          {controller.toasts.map((t) => <div key={t.id} className={`toast${t.ok ? '' : ' err'}`}>{t.text}</div>)}
-        </div>
-      </main>
-
-      <nav className="tabbar" aria-label="Secciones">
-        {TABS.map((t) => (
-          <button key={t.id} type="button" className={tab === t.id ? 'on' : ''} aria-current={tab === t.id ? 'page' : undefined}
-            data-tab={t.id} onClick={() => setTab(t.id)}>
-            {t.label}
-            {t.id === 'diplomacy' && inbox > 0 && <span className="badge">{inbox}</span>}
-          </button>
-        ))}
-      </nav>
+      </div>
 
       {state.gameOver && (
         <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="go-title">

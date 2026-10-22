@@ -6,7 +6,24 @@ export async function game<T>(page: Page, fn: string): Promise<T> {
 }
 
 /** Punto de pantalla dentro de una región, visible y sin marcadores ni paneles encima. */
-export async function regionPoint(page: Page, regionId: string) {
+export async function regionPoint(page: Page, regionId: string): Promise<{ x: number; y: number }> {
+  try {
+    return await regionPointOnce(page, regionId);
+  } catch {
+    // En pantallas muy pequeñas la región puede quedar solo junto a los controles:
+    // se centra el mapa en ella (como haría el jugador) y se vuelve a buscar.
+    await page.evaluate((id) => {
+      const svg = document.querySelector('svg.map') as SVGSVGElement;
+      const bb = (svg.querySelector(`path[data-region="${id}"]`) as SVGPathElement).getBBox();
+      const [, , w] = svg.getAttribute('viewBox')!.split(' ').map(Number);
+      const h = (w * svg.clientHeight) / svg.clientWidth;
+      (window as unknown as { __setView: (v: { x: number; y: number; w: number }) => void }).__setView({ x: bb.x + bb.width / 2 - w / 2, y: bb.y + bb.height / 2 - h / 2, w });
+    }, regionId);
+    return regionPointOnce(page, regionId);
+  }
+}
+
+async function regionPointOnce(page: Page, regionId: string) {
   // Esperar a que el mapa deje de cambiar de tamaño (paneles que se abren o cierran).
   await page.evaluate(() => new Promise<void>((resolve) => {
     let last = '', stable = 0;
@@ -25,6 +42,10 @@ export async function regionPoint(page: Page, regionId: string) {
     const path = svg.querySelector(`path[data-region="${id}"]`) as SVGPathElement;
     const bb = path.getBBox();
     const m = svg.getScreenCTM()!;
+    // El navegador desvía un toque a un control cercano (ajuste táctil): se evitan
+    // puntos a menos de 16 px de los controles flotantes del mapa (ATLAS-001).
+    const controls = [...document.querySelectorAll('.scale-switch, .map-ctl, .side-handle, .order-banner, .minimap')].map((e) => e.getBoundingClientRect());
+    const nearControl = (x: number, y: number) => controls.some((r) => x > r.left - 16 && x < r.right + 16 && y > r.top - 16 && y < r.bottom + 16);
     for (let fy = 0.5; fy < 0.97; fy += 0.06) {
       for (let fx = 0.5; fx < 0.97; fx += 0.06) {
         for (const [sx, sy] of [[fx, fy], [1 - fx, fy], [fx, 1 - fy], [1 - fx, 1 - fy]]) {
@@ -32,7 +53,7 @@ export async function regionPoint(page: Page, regionId: string) {
           pt.x = bb.x + bb.width * sx; pt.y = bb.y + bb.height * sy;
           const p = pt.matrixTransform(m);
           const el = document.elementFromPoint(p.x, p.y);
-          if (el && el.getAttribute('data-region') === id) return { x: p.x, y: p.y };
+          if (el && el.getAttribute('data-region') === id && !nearControl(p.x, p.y)) return { x: p.x, y: p.y };
         }
       }
     }

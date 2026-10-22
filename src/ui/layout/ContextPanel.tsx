@@ -20,6 +20,7 @@ import { moneyShort as money, people, pct, signedPct, int, relationLabel } from 
 import type { SectionId } from './NavRail';
 import { Icon, type IconName } from '../icons';
 import { CITY_KIND_LABEL, cityById, crossingById, formatLonLat } from '../../geo';
+import { StateCard, FacilityCard } from '../panels/AtlasCards';
 
 interface Props {
   state: GameState;
@@ -405,7 +406,8 @@ export function ContextPanel(props: Props) {
   const { state, selection } = props;
   const country = selection.kind === 'country' ? selection.country : state.player;
   const selKey = selection.kind === 'region' ? `r:${selection.regionId}` : selection.kind === 'units' ? `u:${selection.unitIds.join()}`
-    : selection.kind === 'city' ? `c:${selection.cityId}` : selection.kind === 'crossing' ? `x:${selection.crossingId}` : selection.kind;
+    : selection.kind === 'city' ? `c:${selection.cityId}` : selection.kind === 'crossing' ? `x:${selection.crossingId}`
+    : selection.kind === 'state' ? `s:${selection.stateId}` : selection.kind === 'facility' ? `f:${selection.facilityId}` : selection.kind;
   const ref = useRef<HTMLDivElement>(null);
   // Al seleccionar región o batallones, llevar su tarjeta a la vista (pantallas bajas).
   useEffect(() => {
@@ -420,6 +422,9 @@ export function ContextPanel(props: Props) {
       {selection.kind === 'units' && <UnitsCard {...props} selection={selection} />}
       {selection.kind === 'city' && <CityCard cityId={selection.cityId} setSelection={props.setSelection} />}
       {selection.kind === 'crossing' && <CrossingCard crossingId={selection.crossingId} setSelection={props.setSelection} />}
+      {selection.kind === 'state' && <StateCard stateId={selection.stateId} regionId={selection.regionId} setSelection={props.setSelection} />}
+      {selection.kind === 'state' && <RegionCard {...props} regionId={selection.regionId} />}
+      {selection.kind === 'facility' && <FacilityCard facilityId={selection.facilityId} setSelection={props.setSelection} />}
     </div>
   );
 }

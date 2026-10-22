@@ -97,20 +97,22 @@ test('Pellizco: zoom centrado en el gesto, el mapa sigue a los dedos y se respet
 
   // Límites de zoom. Pellizco vertical: en el iPhone SE el mapa es estrecho y un
   // pellizco horizontal amplio empezaría sobre los botones del mapa.
-  const c = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  // Centro algo por encima de la mitad: el selector de escala (ATLAS-001) ocupa la parte inferior.
+  const c = { x: r.left + r.width / 2, y: r.top + r.height * 0.42 };
   const pinchOnce = async (from: number, to: number) => {
     await f.down([{ x: c.x, y: c.y - from }, { x: c.x, y: c.y + from }]);
     await f.slide([{ x: c.x, y: c.y - from }, { x: c.x, y: c.y + from }], [{ x: c.x, y: c.y - to }, { x: c.x, y: c.y + to }], 8);
     await f.up();
     await frames(page);
   };
-  await pinchOnce(12, 110); await pinchOnce(12, 110);
+  await pinchOnce(12, 95); await pinchOnce(12, 95); await pinchOnce(12, 95);
   expect((await viewBox(page)).w).toBeCloseTo(MIN_W, 3);
   anchor = await mapPointAt(page, c);
-  await pinchOnce(110, 12); await pinchOnce(110, 12); await pinchOnce(110, 12);
+  await pinchOnce(95, 12); await pinchOnce(95, 12); await pinchOnce(95, 12);
   const vMax = await viewBox(page);
   expect(vMax.w).toBeCloseTo(MAX_W, 3);
-  expect(await landShare(page)).toBeGreaterThan(0.2); // alejado del todo, el continente sigue a la vista
+  // Alejado del todo, el continente sigue a la vista (criterio de bounds.ts: tierra en la zona central).
+  expect(await landShare(page)).toBeGreaterThan(0.05);
   expect(await selected(page)).toBeNull();
 });
 

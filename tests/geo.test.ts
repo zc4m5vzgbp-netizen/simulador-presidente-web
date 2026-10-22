@@ -135,17 +135,19 @@ describe('Organización y separación del motor', () => {
     walk('src/engine');
     for (const f of files) {
       const src = readFileSync(f, 'utf8');
-      assert.doesNotMatch(src, /from ['"][^'"]*(\/geo|geo\.generated|\/ui\/)/, f);
+      assert.doesNotMatch(src, /from ['"][^'"]*(\/geo|geo\.generated|\/atlas|\/ui\/)/, f);
     }
   });
 
-  test('registro de capas: nuevas capas activas, ampliaciones previstas sin datos', () => {
+  test('registro de capas (ATLAS-001): activas, parciales identificadas y previstas sin datos', () => {
     const st = Object.fromEntries(MAP_LAYERS.map((l) => [l.id, l.status]));
-    for (const id of ['cities', 'crossings', 'roads']) assert.equal(st[id], 'active', id);
-    for (const id of ['provinces', 'ports', 'airports']) assert.equal(st[id], 'planned', id);
+    for (const id of ['cities', 'crossings', 'roads', 'provinces', 'hydro']) assert.equal(st[id], 'active', id);
+    // Datos reales pero no exhaustivos: nunca se presentan como completos.
+    for (const id of ['ports', 'airports']) assert.equal(st[id], 'partial', id);
+    assert.equal(st.bases, 'planned');
     const vis = defaultVisibility();
-    assert.equal(vis.cities && vis.crossings && vis.roads, true);
-    assert.equal(vis.ports || vis.airports || vis.provinces, false);
+    assert.equal(vis.cities && vis.crossings && vis.roads && vis.provinces && vis.ports && vis.airports, true);
+    assert.equal(vis.bases, false);
   });
 
   test('formato de coordenadas', () => {

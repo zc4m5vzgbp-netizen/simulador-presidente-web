@@ -12,8 +12,9 @@ import { CITIES, CROSSINGS, ROAD_NETWORK, type City, type Crossing } from '../..
 
 export interface Box { x0: number; y0: number; x1: number; y1: number }
 
-const DISPLAY = '"Saira Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif';
-const BODY = '"Source Sans 3", "Source Sans Pro", system-ui, -apple-system, "Segoe UI", sans-serif';
+// ATLAS-001: misma tipografía que la hoja de estilos (Inter; -apple-system como reserva en iOS).
+const DISPLAY = '"Inter", -apple-system, system-ui, sans-serif';
+const BODY = '"Inter", -apple-system, system-ui, "Segoe UI", sans-serif';
 let ctx: CanvasRenderingContext2D | null | undefined;
 const widthCache = new Map<string, number>();
 
@@ -22,12 +23,15 @@ const widthCache = new Map<string, number>();
  * hay canvas (pruebas sin navegador) se usa una estimación prudente.
  * `clearTextWidths` se llama cuando terminan de cargar las fuentes web.
  */
-export function textWidth(text: string, px: number, weight: number, display: boolean, letterSpacingEm = 0): number {
-  const key = `${text}|${weight}|${display}`;
+/** Fuente de la rotulación cartográfica (países y mares). */
+export const CARTO_FONT = '"Lora", Georgia, "Times New Roman", serif';
+
+export function textWidth(text: string, px: number, weight: number, display: boolean, letterSpacingEm = 0, family?: string): number {
+  const key = `${text}|${weight}|${display}|${family ?? ''}`;
   let w100 = widthCache.get(key);
   if (w100 === undefined) {
     if (ctx === undefined) ctx = typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
-    if (ctx) { ctx.font = `${weight} 100px ${display ? DISPLAY : BODY}`; w100 = ctx.measureText(text).width; }
+    if (ctx) { ctx.font = `${weight} 100px ${family ?? (display ? DISPLAY : BODY)}`; w100 = ctx.measureText(text).width; }
     else w100 = text.length * 62;
     widthCache.set(key, w100);
   }
@@ -88,7 +92,9 @@ export function cityLabelCandidates(item: { w: number; c: City }, k: number): [n
   const r = cityRadius(item.c);
   const span = item.w / k + 2 * r + 6; // de "a la derecha" a "a la izquierda"
   const half = item.w / k / 2 + r + 3;
-  return [[0, 0], [-span, 0], [-half, -13], [-half, 13], [0, -12], [0, 12], [-span, -12], [-span, 12]];
+  // ATLAS-001: dos posiciones más, encima y debajo y algo más separadas (iconos de instalaciones y pasos cercanos).
+  return [[0, 0], [-span, 0], [-half, -13], [-half, 13], [0, -12], [0, 12], [-span, -12], [-span, 12], [-half, -21], [-half, 21],
+    [-half - 10, -21], [-half + 10, -21], [-half - 10, 21], [-half + 10, 21]];
 }
 
 /**

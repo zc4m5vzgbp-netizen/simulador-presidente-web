@@ -25,22 +25,23 @@ async function tapIcon(page: Page, selector: string) {
   await page.touchscreen.tap(p.x, p.y);
 }
 
-test('Capas: carreteras, pasos y ciudades se muestran y ocultan; puertos, aeropuertos y provincias siguen previstos', async ({ page }) => {
+test('Capas: carreteras, pasos, ciudades, estados e instalaciones se muestran y ocultan; bases militares siguen previstas', async ({ page }) => {
   await startGame(page, 'ARG');
   expect(await page.locator('[data-layer="roads"] [data-road-network]').count()).toBeGreaterThanOrEqual(1);
   expect(await page.locator('[data-layer="crossings"] [data-crossing]').count()).toBeGreaterThanOrEqual(15);
   expect(await page.locator('[data-city-kind="capital"]').count()).toBe(12);
+  expect(await page.locator('[data-layer="provinces"] [data-state]').count()).toBeGreaterThan(200);
   await page.getByRole('button', { name: 'Capas del mapa' }).tap();
-  await expect(page.locator('.layer-row.planned')).toHaveCount(3);
-  for (const id of ['provinces', 'ports', 'airports']) await expect(page.locator(`#layer-${id}`)).toBeDisabled();
-  for (const [id, sel] of [['roads', '[data-road-network]'], ['crossings', '[data-crossing]'], ['cities', '[data-city]']] as const) {
+  await expect(page.locator('.layer-row.planned')).toHaveCount(1);
+  await expect(page.locator('#layer-bases')).toBeDisabled();
+  for (const [id, sel] of [['roads', '[data-road-network]'], ['crossings', '[data-crossing]'], ['cities', '[data-city]'], ['provinces', '[data-state]']] as const) {
     await page.locator(`label[for="layer-${id}"]`).tap();
     await expect(page.locator(sel)).toHaveCount(0);
     await page.locator(`label[for="layer-${id}"]`).tap();
     expect(await page.locator(sel).count()).toBeGreaterThan(0);
   }
-  // Capas previstas: grupos vacíos, sin datos inventados.
-  for (const id of ['provinces', 'ports', 'airports']) expect(await page.locator(`g[data-layer="${id}"] > *`).count()).toBe(0);
+  // Capa prevista: grupo vacío, sin datos inventados.
+  expect(await page.locator('g[data-layer="bases"] > *').count()).toBe(0);
 });
 
 test('Ocultar las capas cartográficas no altera el estado del motor', async ({ page }) => {

@@ -34,7 +34,7 @@ Capturas antes/después (iPhone SE y 15 Pro Max, horizontal) en `docs/mobile-001
 - **Ciudades** (capa activable): las 12 capitales nacionales (estrella) y La Paz como sede de gobierno de Bolivia (anillo), siempre visibles; 33 ciudades principales (punto) aparecen al acercar. Los nombres se colocan evitando batallones, otros nombres e iconos; si no caben, se ocultan hasta acercar más. Al tocarlas se ve: tipo, país, provincia/estado, región del juego, coordenadas y fuente. **Sin población ni economía propias** (no hay datos verificados en el juego).
 - **Pasos fronterizos** (capa activable): 22 pasos reales, 20 terrestres (rombo) y 2 fluviales (círculo azul con línea discontinua entre terminales). Cada uno tiene nombre, países, localidades, coordenadas, precisión y enlaces a sus fuentes. **No cambian todavía el movimiento militar.**
 - **Carreteras principales** (capa activable): 20 corredores trazados sobre la red vial real (Natural Earth 1:10m Roads, camino más corto por la red). Sin líneas rectas inventadas ni cálculo de transporte.
-- **Previstas** (con candado, vacías): provincias/estados, puertos y aeropuertos.
+- **Previstas** en MAP-001: provincias/estados, puertos y aeropuertos (ya disponibles desde ATLAS-001; ver abajo).
 
 Organización: definiciones con fuentes por país en `src/data/geo/sources/*.def.ts` → `npm run gen:geo` (valida y genera `src/data/geo/geo.generated.json`) → acceso tipado en `src/geo/` → dibujo en `src/ui/map/GeoLayers.tsx`. El motor (`src/engine`) no importa nada de esto (lo comprueba una prueba).
 
@@ -45,6 +45,27 @@ Limitaciones documentadas:
 - Descartados por falta de fuente fiable: Guayaramerín–Guajará-Mirim (la fuente no documenta el transbordador), la coordenada de Leticia del DLCA (error de signo) y un paso vial oficial Guyana–Venezuela (no existe).
 - Corredor Caracas–Ciudad Guayana descartado: la red de Natural Earth no tiene trazado continuo.
 - Natural Earth asigna mal algunas provincias en su tabla de ciudades; por eso la provincia se calcula por posición sobre los límites administrativos de Natural Earth 1:10m.
+
+## Atlas de mando (ATLAS-001)
+
+Interfaz del mapa rediseñada a partir del prototipo «Atlas de mando», conectada al motor existente (mismo React + TypeScript + SVG + IndexedDB; **sin MapLibre**, sin cambios en reglas, guardado, coordenadas del juego ni detección de toques del motor).
+
+- **Pantalla**: mapa casi a pantalla completa, barra superior compacta, columna de controles flotante (vidrio), panel contextual derecho plegable (al plegarlo el mapa recupera el ancho), selector visible **Continente / Nación / Región** (abreviado en pantallas estrechas). Botones de al menos 32 px de alto y zonas táctiles de 44 px en marcadores.
+- **Estilo**: colores de país desaturados (el propio algo más vivo), relieve procedimental discreto ya existente, fronteras nacionales claras y gruesas; estatales finas y tenues.
+- **Escalas** (`src/ui/map/scale.ts`): se eligen por densidad (unidades de mapa por píxel), así funcionan igual en iPhone SE y 15 Pro Max. El pellizco actualiza el selector.
+  - *Continente*: países, capitales y **una agrupación militar por país** (en su capital, sumando efectivos reales). Sin estados, vías ni instalaciones. Ríos mayores.
+  - *Nación*: estados/provincias, autopistas y troncales, ciudades principales, pasos fronterizos, aeropuertos y puertos principales, batallones por región.
+  - *Región*: además vías secundarias, todas las instalaciones de la selección con su código IATA, más ríos y nombres de estado.
+  - Jerarquía vial tipo Apple Maps: autopista (*Major Highway*), troncal (*Road* con rango ≤ 4) y secundaria (resto), cada una con su grosor.
+- **Rótulos**: colocación con candidatos alrededor de cada icono que evita marcadores, iconos, otros rótulos y los controles flotantes; si no cabe, no se dibuja. Las instalaciones ceden el sitio a ciudades, pasos y unidades. Una prueba comprueba, en las tres escalas, que ningún rótulo visible se superpone.
+- **Fichas** (`src/ui/panels/InfoCard.tsx`, reutilizable): *Estado* (tipo, país, capital según Natural Earth, región del juego, ciudades del mapa e instalaciones situadas en él; debajo, la ficha de la región del juego con sus datos reales de partida) e *Instalación* (tipo según la fuente, estado, región, coordenadas). **No se muestran poblaciones, producciones ni capacidades inventadas**; el uso de aeropuertos y puertos en la partida figura como *Pendiente*.
+- **Simbología militar** (`src/ui/military/`): APP-6 simplificado. El marco indica la relación (propio/aliado rectángulo, hostil rombo, neutral cuadrado; aire, mar y submarino tienen marco propio) y el glifo el tipo. Estructura preparada para infantería, mecanizada, blindados, tanques, artillería, defensa antiaérea, cazas, helicópteros, drones, flotas, buques, submarinos y formaciones compuestas; **solo infantería (batallones) y formación (agrupación continental) existen hoy en el juego**: no se añadieron mecánicas ni se cambió el combate.
+
+Datos (todos reales y verificables, Natural Earth 1:10m v5.1.2, dominio público): 240 estados/provincias de los 12 países (Admin-1; Galápagos excluido por quedar fuera del lienzo del mapa), red vial por jerarquía, ríos y lagos, 79 aeropuertos y 76 puertos (selección de principales de Natural Earth, **no inventario completo**: capas marcadas *Parcial*). Extractos en `data-src/natural-earth/*-sa.geojson` → `npm run gen:atlas` → `src/data/atlas/atlas.generated.json` → acceso tipado en `src/atlas/`. La capital de un estado se toma de Natural Earth solo si coincide en posición y nombre; si no, se muestra "No identificada en la fuente" (45 casos).
+
+Pendiente (visible como tal en la interfaz): bases militares (capa *Prevista*, vacía), inventario completo de puertos y aeropuertos, uso de infraestructura en la partida, tipos de unidad distintos de la infantería, panel de composición y despliegue con datos reales.
+
+Capturas reales (iPhone 15 Pro Max y SE, horizontal) de las tres escalas, la ficha de estado y el panel plegado en `docs/atlas-001/`.
 
 ## Ejecutar localmente
 
@@ -57,8 +78,8 @@ npm run serve        # http://localhost:4173
 ## Pruebas
 
 ```bash
-npm test             # 63 pruebas: motor (43, incluida la carga de una partida de la beta 1.0), cartografía (16) y encuadre del mapa (4)
-npm run build && npx playwright install chromium && npm run test:e2e   # 34 pruebas táctiles × 2 tamaños de iPhone en horizontal
+npm test             # 77 pruebas: motor (43, incluida la carga de una partida de la beta 1.0), cartografía (16), encuadre del mapa (4), atlas (7) y escalas/simbología (7)
+npm run build && npx playwright install chromium && npm run test:e2e   # 43 pruebas táctiles × 2 tamaños de iPhone en horizontal
 SHOTS=1 npx playwright test screenshots   # capturas en docs/map-001/
 ```
 

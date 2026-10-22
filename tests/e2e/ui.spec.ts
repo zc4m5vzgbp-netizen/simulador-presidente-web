@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { game, regionPoint, startGame } from './helpers';
+import { fastTime, game, regionPoint, startGame } from './helpers';
 
 test('Inicio, calendario y pausa con controles táctiles', async ({ page }) => {
   await startGame(page, 'CHL');
   expect(await game<string>(page, 's.player')).toBe('CHL');
   await page.waitForTimeout(1200);
   expect(await game<number>(page, 's.hour')).toBe(0);
+  await fastTime(page);
   await page.locator('[data-speed="3"]').tap();
   await expect.poll(() => game<number>(page, 's.hour'), { timeout: 10_000 }).toBeGreaterThan(24);
   await expect(page.getByTestId('date')).not.toContainText('1 ene 2027');
@@ -26,6 +27,7 @@ test('Seleccionar un batallón, ordenar la marcha tocando el mapa y verlo llegar
   await expect(page.locator('.toast').first()).toContainText('en marcha');
   const moving = await game<string[]>(page, "Object.values(s.units).filter(u => u.owner === 'ARG' && u.destination === 'AR_PA').map(u => u.id)");
   expect(moving.length).toBeGreaterThan(0);
+  await fastTime(page);
   await page.locator('[data-speed="3"]').tap();
   await expect.poll(() => game<string>(page, `s.units['${moving[0]}'].regionId`), { timeout: 30_000 }).toBe('AR_PA');
   await page.locator('[data-speed="0"]').tap();
@@ -52,6 +54,7 @@ test('Diplomacia: declarar la guerra con confirmación en la página', async ({ 
 
 test('Guardar en IndexedDB, recargar la página y continuar', async ({ page }) => {
   await startGame(page, 'COL');
+  await fastTime(page);
   await page.locator('[data-speed="3"]').tap();
   await expect.poll(() => game<number>(page, 's.hour'), { timeout: 10_000 }).toBeGreaterThan(48);
   await page.locator('[data-speed="0"]').tap();

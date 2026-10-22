@@ -40,7 +40,6 @@ export const STATUS_LABEL: Record<UnitStatus, string> = {
   idle: 'En posición',
   moving: 'En marcha',
   combat: 'En combate',
-  training: 'Entrenando',
   retreating: 'En retirada',
 };
 

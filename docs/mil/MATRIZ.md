@@ -1,53 +1,53 @@
 # Matriz MIL-001 a MIL-171
 
-Estado de cada decisión frente al código de `main` (commit `f9516f5`, 22 oct 2026). Los resúmenes proceden del documento de entrega; donde el traspaso no incluye el texto literal se indica **A cotejar** en lugar de suponerlo.
+Estado de cada decisión tras la **Fase 1** (rama `feature/mil-001-batallones`). Los resúmenes proceden del documento de entrega; donde el traspaso no incluye el texto literal se indica **A cotejar** en lugar de suponerlo.
 
 Estados: **Cumple** · **Parcial** · **Conflicto** (el código contradice la decisión) · **No implementado** · **Planificado** · **Proceso** · **A confirmar** (requiere decisión del usuario) · **A cotejar** (falta el texto literal de la decisión).
 
 Fases: F0 auditoría · F1 batallones e inventario · F2 combate terrestre · F3 industria y economía militar · F4 aviación · F5 armada · F6 defensa aérea · F7 misiles y nuclear · F8 diplomacia militar · F9 investigación y modernización · F10 avisos y ampliación. Ver `PLAN.md`.
 
-Resumen: No implementado: 93 · Parcial: 30 · Cumple: 25 · A cotejar: 8 · Conflicto: 6 · Planificado: 5 · Proceso: 3 · A confirmar: 1
+Resumen: No implementado: 76 · Cumple: 50 · Parcial: 31 · A cotejar: 8 · Proceso: 3 · Conflicto: 1 · A confirmar: 1 · Planificado: 1
 
 | MIL | Opción | Decisión (resumen) | Fase | Estado | Dónde / nota |
 |---|---|---|---|---|---|
-| 001 | B→C A | Plantilla fija universal de batallón (MIL-001C A sustituye a 001 B) | F1 | No implementado | `Unit` solo tiene efectivos (`src/engine/types.ts`) |
+| 001 | B→C A | Plantilla fija universal de batallón (MIL-001C A sustituye a 001 B) | F1 | Cumple | `BATTALION_TEMPLATE` (`src/data/military.ts`), `src/engine/equipment.ts` |
 | 002 | B | A cotejar: texto literal no incluido en el traspaso | — | A cotejar | Solicitar formulación literal |
 | 003 | B | A cotejar: texto literal no incluido en el traspaso | — | A cotejar | Solicitar formulación literal |
 | 004 | B→ | Solo batallones; sin brigadas, divisiones ni ejércitos como entidades | F1 | Cumple | Solo existe `Unit` (batallón) |
-| 005 | B→ | Plantilla única (sustituida) | F1 | No implementado | Ver MIL-001 |
+| 005 | B→ | Plantilla única (sustituida) | F1 | Cumple | Una sola plantilla para todos los países |
 | 006 | B | A cotejar: texto literal no incluido en el traspaso | — | A cotejar | Solicitar formulación literal |
 | 007 | B | A cotejar: texto literal no incluido en el traspaso | — | A cotejar | Solicitar formulación literal |
 | 008 | A | A cotejar: texto literal no incluido en el traspaso | — | A cotejar | Solicitar formulación literal |
 | 009 | B→ | Inventario aéreo nacional (sustitución) | F4 | No implementado | Sin aviación |
 | 010 | B | A cotejar: texto literal no incluido en el traspaso | — | A cotejar | Solicitar formulación literal |
 | 011 | C | A cotejar: texto literal no incluido en el traspaso | — | A cotejar | Solicitar formulación literal |
-| 012 | B | Reclutamiento progresivo | F1 | Conflicto | `recruit` crea 1.000 efectivos de golpe (`military.ts`) |
-| 013 | A | Reclutamiento solo voluntario | F1 | Cumple | No existe conscripción |
+| 012 | B | Reclutamiento progresivo | F1 | Cumple | Nace con 250 voluntarios y +50/día (ritmo provisional) — `recruit`, `dailyReplenishment` |
+| 013 | A | Reclutamiento solo voluntario | F1 | Cumple | Sin conscripción |
 | 014 | B | Equipo fabricable o comprable | F3 | No implementado | Sin equipos |
 | 015 | B | Tiempo de producción y entrega | F3 | No implementado | — |
-| 016 | B | Modelos de equipo diferenciados por país | F1 | No implementado | Datos reales pendientes; F1 usa modelos provisionales |
-| 017 | B | Reservas por modelo | F1 | No implementado | — |
-| 018 | A | Sin entrenamiento obligatorio | F1 | Conflicto | `TRAINING_HOURS` = 15 días (`military.ts`) |
-| 019 | B | Reposición automática pausable | F1 | No implementado | — |
+| 016 | B | Modelos de equipo diferenciados por país | F1 | Parcial | Un modelo por país y categoría, **provisional**; faltan modelos reales |
+| 017 | B | Reservas por modelo | F1 | Cumple | `CountryState.inventory` por modelo; cantidades provisionales |
+| 018 | A | Sin entrenamiento obligatorio | F1 | Cumple | Entrenamiento eliminado; guardados v1 migran a operativos |
+| 019 | B | Reposición automática pausable | F1 | Cumple | `setAutoReplenish`; interruptor en Ejército |
 | 020 | B | Mantenimiento con presupuesto | F3 | Parcial | `upkeepNeeded`/`supplyRatio` solo por batallón |
 | 021 | B | Industria limitada y ampliable | F3 | No implementado | — |
-| 022 | B | Máximo 20 tanques por batallón | F1 | No implementado | — |
-| 023 | C | Máximo 30 blindados multipropósito | F1 | No implementado | — |
-| 024 | B | Máximo 8 artillerías | F1 | No implementado | — |
-| 025 | C | Máximo 40 drones | F1 | No implementado | — |
-| 026 | A | Máximo 20 vehículos de transporte | F1 | No implementado | — |
-| 027 | B | Tripulación asignada automáticamente; resto infantería | F1 | No implementado | Tripulación por modelo: PENDIENTE DE DATO |
-| 028 | B | Batallones incompletos; equipo sin personal inactivo | F1 | Parcial | Hay batallones con menos de 1.000 tras bajas; no hay equipo |
-| 029 | B | Patrón universal con modelos nacionales | F1 | No implementado | — |
-| 030 | B | Reclutar varios batallones a la vez | F1 | No implementado | Un batallón por acción |
+| 022 | B | Máximo 20 tanques por batallón | F1 | Cumple | Plantilla + prueba |
+| 023 | C | Máximo 30 blindados multipropósito | F1 | Cumple | Plantilla + prueba |
+| 024 | B | Máximo 8 artillerías | F1 | Cumple | Plantilla + prueba |
+| 025 | C | Máximo 40 drones | F1 | Cumple | Plantilla + prueba |
+| 026 | A | Máximo 20 vehículos de transporte | F1 | Cumple | Plantilla + prueba |
+| 027 | B | Tripulación asignada automáticamente; resto infantería | F1 | Parcial | `crewReport` asigna por prioridad; cifras por modelo PENDIENTE DE DATO (provisionales 4/3/6/2/2) |
+| 028 | B | Batallones incompletos; equipo sin personal inactivo | F1 | Cumple | Equipo sin tripulación = inactivo, visible en la ficha |
+| 029 | B | Patrón universal con modelos nacionales | F1 | Cumple | Plantilla universal; modelos nacionales (provisionales) |
+| 030 | B | Reclutar varios batallones a la vez | F1 | Cumple | Reclutar 1–5 por orden |
 | 031 | B | Agrupación visual de batallones | F1 | Cumple | Atlas: pilas por región y agrupación por país (`MapView.tsx`, `scale.ts`) |
-| 032 | A | Sin indicador de preparación 0–100 | F1/F2 | Conflicto | Barra «Org.» 0–100 en la ficha; `org` interviene en combate y marcha |
-| 033 | B | Movimiento con tiempo | F1 | Cumple | `hourlyMovement`; falta mostrar la duración |
+| 032 | A | Sin indicador de preparación 0–100 | F1/F2 | Parcial | Barras retiradas de la interfaz; `org` sigue en el combate hasta F2 |
+| 033 | B | Movimiento con tiempo | F1 | Cumple | `etaHours`: «llega en …» en la ficha |
 | 034 | B | Órdenes conjuntas | F1 | Cumple | Multiselección → «Mover (n)» (`ContextPanel.tsx`) |
 | 035 | B | Combustible y munición | F2 | No implementado | — |
 | 036 | B | Mantenimiento de equipo | F2 | Parcial | Solo abastecimiento general |
 | 037 | B | Bajas humanas y materiales separadas | F2 | No implementado | Solo bajas de efectivos |
-| 038 | B | Reposición automática pausable | F1 | No implementado | — |
+| 038 | B | Reposición automática pausable | F1 | Cumple | Efectivos (pagados) y equipo desde la reserva; pausable |
 | 039 | A | Experiencia idéntica (sin veteranía) | F1 | Cumple | No hay experiencia; la moral se revisa en F2 |
 | 040 | B | Combate por intervalos | F2 | Parcial | Combate horario (`hourlyCombat`) |
 | 041 | B | Retirada automática por pérdidas graves y manual | F2 | Parcial | Retirada automática por `org` ≤ 8, no por pérdidas; sin orden manual |
@@ -85,7 +85,7 @@ Resumen: No implementado: 93 · Parcial: 30 · Cumple: 25 · A cotejar: 8 · Con
 | 073 | B | Salarios/mantenimiento/operaciones separados de compras | F3 | Parcial | Un solo presupuesto cubre mantenimiento; sin compras |
 | 074 | B | Árbol de investigación (dinero y tiempo) | F9 | No implementado | Sección «Investigación» bloqueada |
 | 075 | A* | Bonificaciones generales + sustitución automática (excepción ratificada) | F9 | No implementado | Equivalencias y reglas: PENDIENTE DE DATO |
-| 076 | B | Estadísticas simples por modelo | F1 | No implementado | F1: estadísticas provisionales |
+| 076 | B | Estadísticas simples por modelo | F1 | Parcial | Fuego/Protección/Movilidad **provisionales**; sin efecto en combate hasta F2 |
 | 077 | B | Fuerza efectiva multivariable | F2 | Parcial | `unitPower`: efectivos, calidad, org, moral; sin equipo/tecnología/mantenimiento |
 | 078 | B | Deterioro gradual por presupuesto | F2 | Parcial | `supplyRatio` baja org y causa desgaste |
 | 079 | B | Precios por modelo | F3 | No implementado | — |
@@ -152,19 +152,19 @@ Resumen: No implementado: 93 · Parcial: 30 · Cumple: 25 · A cotejar: 8 · Con
 | 140 | B | Indicadores discretos | F2 | A cotejar | Significado exacto a confirmar |
 | 141 | B | Panel de batalla | F2 | No implementado | Capa de batallas sin panel |
 | 142 | B | Agrupación en el mapa por zoom | F1 | Cumple | Atlas Continente/Nación/Región |
-| 143 | B | Ficha de batallón | F1 | Parcial | Efectivos, estado, org, moral; sin equipo |
-| 144 | B | Vista ilustrada | F1 | No implementado | — |
-| 145 | B | Multiselección con totales y detalle | F1 | Parcial | Hay multiselección; sin totales |
+| 143 | B | Ficha de batallón | F1 | Cumple | Efectivos, 5 categorías, infantería, tripulación, estado, marcha |
+| 144 | B | Vista ilustrada | F1 | Cumple | Siluetas genéricas propias (`Silhouette.tsx`) |
+| 145 | B | Multiselección con totales y detalle | F1 | Cumple | Totales + detalle individual (`UnitsCard`) |
 | 146 | B | Panel aéreo | F4 | No implementado | — |
 | 147 | B | Flotas visibles | F5 | No implementado | — |
 | 148 | B | Instalaciones diferenciadas con filtros | F4–F7 | Parcial | Atlas: aeropuertos/puertos con filtros; bases previstas |
-| 149 | B | Inventario por ramas | F1 | No implementado | F1: rama Tierra |
+| 149 | B | Inventario por ramas | F1 | Parcial | Tierra completa; Aire y Armada marcadas como pendientes (F4/F5) |
 | 150 | B | Órdenes táctiles seleccionar → acción → destino | F1 | Cumple | MOBILE-001 |
 | 151 | B | Paneles táctiles plegables | F1 | Cumple | ATLAS-001 |
 | 152 | B | Tiempo automático y pausa | F1 | Cumple | `GameClock` |
-| 153 | C | 1 día = 5 minutos reales a ×1 | F1 | Conflicto | `REAL_MS_PER_DAY = 60_000` (60 s) |
-| 154 | B | Pausa, ×1, ×2, ×4 | F1 | Conflicto | Velocidades ×1, ×10, ×60 |
-| 155 | B | No avanza con el juego cerrado; pausa al cerrar | F1 | Parcial | No avanza cerrado y autoguarda; al volver sigue a la velocidad anterior |
+| 153 | C | 1 día = 5 minutos reales a ×1 | F1 | Cumple | `REAL_MS_PER_DAY = 300 000` |
+| 154 | B | Pausa, ×1, ×2, ×4 | F1 | Cumple | ×1, ×2, ×4 |
+| 155 | B | No avanza con el juego cerrado; pausa al cerrar | F1 | Cumple | Pausa y autoguardado al ocultar la app |
 | 156 | B | Autoguardado y guardado manual | F1 | Cumple | Mensual + al ocultar; 3 ranuras |
 | 157 | B | Varias partidas | F1 | Cumple | Ranuras 1–3 + autoguardado |
 | 158 | B | Cálculo por intervalos determinista respecto a la velocidad | F1 | Cumple | `stepHour`; prueba de reloj |
@@ -172,10 +172,10 @@ Resumen: No implementado: 93 · Parcial: 30 · Cumple: 25 · A cotejar: 8 · Con
 | 160 | B | Avisos relevantes | F10 | Parcial | Avisos y registro |
 | 161 | B | Navegación desde avisos | F10 | No implementado | — |
 | 162 | B | Desarrollo por fases | — | Cumple | `docs/mil/PLAN.md` |
-| 163 | B | Fase 1: batallones, inventario, fichas, movimiento | F1 | Planificado | — |
-| 164 | B | Varios países de prueba | F1 | Planificado | — |
-| 165 | B | Datos provisionales diferenciados | F1 | Planificado | — |
-| 166 | B | Inspección, agrupación y movimiento | F1 | Planificado | — |
+| 163 | B | Fase 1: batallones, inventario, fichas, movimiento | F1 | Cumple | PR de Fase 1 |
+| 164 | B | Varios países de prueba | F1 | Cumple | Los 12 países tienen modelos y dotación de prueba |
+| 165 | B | Datos provisionales diferenciados | F1 | Cumple | Marcados «Provisional» en ficha e inventario |
+| 166 | B | Inspección, agrupación y movimiento | F1 | Cumple | Pruebas e2e |
 | 167 | B | Combate en Fase 2 | F2 | Planificado | — |
 | 168 | B | Calidad visual en cada fase | — | Proceso | Capturas por PR |
 | 169 | B | Pruebas automatizadas + iPhone | — | Proceso | Unitarias, e2e emuladas; iPhone real lo valida el usuario |

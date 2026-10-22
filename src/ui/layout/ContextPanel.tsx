@@ -15,7 +15,8 @@ import { controller } from '../controller';
 import type { Selection } from '../selection';
 import { ConfirmButton, CountryTag, RelationBar } from '../widgets';
 import { FlagIcon } from '../flags';
-import { UnitCard } from '../panels/UnitCard';
+import { EquipmentGrid, UnitCard, type EquipRow } from '../panels/UnitCard';
+import { BATTALION_TEMPLATE, EQUIP_CATEGORIES, unitsTotals } from '../../engine/equipment';
 import { moneyShort as money, people, pct, signedPct, int, relationLabel } from '../format';
 import type { SectionId } from './NavRail';
 import { Icon, type IconName } from '../icons';
@@ -195,7 +196,7 @@ function RegionCard({ state, regionId, setSelection, startOrder }: Omit<Props, '
   const me = state.player;
   const units = unitsIn(state, regionId);
   const mine = units.filter((u) => u.owner === me);
-  const orderable = mine.filter((u) => u.status !== 'training' && u.status !== 'retreating');
+  const orderable = mine.filter((u) => u.status !== 'retreating');
   const byOwner = new Map<CountryId, Unit[]>();
   for (const u of units) byOwner.set(u.owner, [...(byOwner.get(u.owner) ?? []), u]);
   const battle = state.battles[regionId];
@@ -262,10 +263,16 @@ function UnitsCard({ state, selection, setSelection, startOrder }: Omit<Props, '
   const mine = selection.owner === me;
   const all = unitsIn(state, selection.regionId).filter((u) => u.owner === selection.owner);
   const selected = selection.unitIds.map((id) => state.units[id]).filter(Boolean);
-  const orderable = selected.filter((u) => u.status !== 'training' && u.status !== 'retreating');
+  const orderable = selected.filter((u) => u.status !== 'retreating');
   const moving = selected.filter((u) => u.path.length > 0 && u.status !== 'retreating');
   const list = [...new Map([...selected, ...all].map((u) => [u.id, u])).values()];
   const title = selected.length === 1 ? selected[0].name : `${selected.length} batallones`;
+  const totals = unitsTotals(selected);
+  const n = selected.length;
+  const totalRows: EquipRow[] = [
+    { kind: 'infantry', total: totals.infantry, active: totals.infantry, max: BATTALION_TEMPLATE.maxMen * n },
+    ...EQUIP_CATEGORIES.map((cat) => ({ kind: cat, ...totals.byCategory[cat], max: BATTALION_TEMPLATE.slots[cat] * n })),
+  ];
 
   function toggle(id: string) {
     if (!mine) return;
@@ -301,6 +308,15 @@ function UnitsCard({ state, selection, setSelection, startOrder }: Omit<Props, '
         ) : (
           <p className="muted small-text">Tropas de {countryName(selection.owner)}. Solo puedes consultar su información.</p>
         )}
+        {selected.length === 1 ? (
+          <UnitCard state={state} u={selected[0]} detail />
+        ) : (
+          <div className="units-totals" data-testid="units-totals">
+            <div className="ic-sec">Totales de {selected.length} batallones · {int(totals.men)} efectivos</div>
+            <EquipmentGrid rows={totalRows} testId="totals-equipment" />
+          </div>
+        )}
+        <div className="ic-sec">{selected.length === 1 && list.length > 1 ? 'En la región' : 'Detalle'}</div>
         <div className="unit-list">
           {list.map((u) => (
             <UnitCard key={u.id} state={state} u={u} selected={selection.unitIds.includes(u.id)} onToggle={mine ? () => toggle(u.id) : undefined} />
@@ -409,11 +425,12 @@ export function ContextPanel(props: Props) {
     : selection.kind === 'city' ? `c:${selection.cityId}` : selection.kind === 'crossing' ? `x:${selection.crossingId}`
     : selection.kind === 'state' ? `s:${selection.stateId}` : selection.kind === 'facility' ? `f:${selection.facilityId}` : selection.kind;
   const ref = useRef<HTMLDivElement>(null);
-  // Al seleccionar región o batallones, llevar su tarjeta a la vista (pantallas bajas).
+  // Al seleccionar región o batallones, llevar el INICIO de su tarjeta a la vista (pantallas bajas):
+  // las fichas largas (batallones) se leen desde arriba.
   useEffect(() => {
     if (selection.kind === 'none' || selection.kind === 'country') return;
     const card = ref.current?.querySelector('.region-card, .units-card, .geo-card');
-    card?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    card?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }, [selKey]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="cards" data-testid="context" ref={ref}>

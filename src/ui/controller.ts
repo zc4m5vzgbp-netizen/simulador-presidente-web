@@ -29,13 +29,20 @@ export class GameController {
   private last = 0;
   private toastId = 0;
   private lastAutosaveMonth = -1;
+  /** Solo para pruebas automatizadas: acelera el reloj sin cambiar las reglas (1 = tiempo real). */
+  timeScale = 1;
 
   constructor(storage?: StorageAdapter) {
     this.storage = storage ?? defaultStorage();
     this.refreshSaves();
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', () => {
-        if (document.hidden && this.state && !this.state.gameOver) void this.autosave();
+        // Al cerrar u ocultar la app: pausa y autoguardado (MIL-155 B). El juego no avanza cerrado.
+        if (document.hidden && this.state && !this.state.gameOver) {
+          this.clock.speed = 0;
+          void this.autosave();
+          this.emit();
+        }
       });
     }
   }
@@ -107,7 +114,7 @@ export class GameController {
       const dt = now - this.last;
       this.last = now;
       if (this.state && !this.state.gameOver) {
-        const hours = this.clock.tick(dt);
+        const hours = this.clock.tick(dt, this.timeScale);
         if (hours > 0) {
           advanceHours(this.state, hours);
           const m = monthIndex(this.state.hour);

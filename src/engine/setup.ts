@@ -5,6 +5,7 @@ import { COUNTRY_DEFS, INITIAL_RELATIONS } from '../data/countries';
 import { COUNTRY_IDS, REGION_DEFS } from '../data/regionDefs';
 import { REGIONS, capitalOf, neighborCountries } from './world';
 import { createUnit } from './military';
+import { initialEquipment, initialInventory } from './equipment';
 import { recomputeAggregates } from './territory';
 import { log, monthIndex } from './core';
 import { annualFlows } from './economy';
@@ -37,6 +38,8 @@ export function createNewGame(player: CountryId, seed = Date.now() >>> 0): GameS
       casualties: 0,
       supplyRatio: 1,
       eliminated: false,
+      inventory: initialInventory(id, d.units),
+      autoReplenish: true,
     };
   }
 
@@ -100,7 +103,7 @@ export function createNewGame(player: CountryId, seed = Date.now() >>> 0): GameS
       .map((r) => r.id)
       .sort((a, b) => foreignNeighbors(b) - foreignNeighbors(a));
     const order = [cap, ...others];
-    for (let i = 0; i < n; i++) createUnit(state, id, order[i % order.length], false);
+    for (let i = 0; i < n; i++) createUnit(state, id, order[i % order.length]).equipment = initialEquipment(id);
   }
 
   recomputeAggregates(state);

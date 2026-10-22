@@ -3,9 +3,10 @@ import type { CountryId, GameState, Unit } from './types';
 import { clamp, fail, log, newId, ok, type ActionResult } from './core';
 import { REGIONS, distance, countryName } from './world';
 import { atWar, sameSide } from './war';
+import { BATTALION_TEMPLATE, RECRUITMENT, fillFromInventory, returnToInventory } from './equipment';
 
-export const UNIT_MAX_MEN = 1000;
-export const TRAINING_HOURS = 15 * 24;
+/** Máximo de efectivos por batallón (plantilla universal). */
+export const UNIT_MAX_MEN = BATTALION_TEMPLATE.maxMen;
 /** Velocidad base en unidades de mapa por hora (≈3 días entre regiones vecinas). */
 export const BASE_SPEED = 1.4;
 export const HOSTILE_SPEED_FACTOR = 0.65;
@@ -20,7 +21,6 @@ export function unitsIn(state: GameState, regionId: string): Unit[] {
 
 /** Fuerza de combate de un batallón. */
 export function unitPower(state: GameState, u: Unit): number {
-  if (u.status === 'training') return 0;
   const q = state.countries[u.owner].armyQuality;
   return (u.men / UNIT_MAX_MEN) * 10 * q * (0.3 + 0.7 * u.org / 100) * (0.6 + 0.4 * u.morale / 100);
 }
@@ -45,7 +45,8 @@ export function canEnter(state: GameState, owner: CountryId, regionId: string): 
   return ctrl === owner || atWar(state, owner, ctrl) || sameSide(state, owner, ctrl);
 }
 
-export function createUnit(state: GameState, owner: CountryId, regionId: string, training: boolean): Unit {
+/** Crea un batallón operativo (sin entrenamiento obligatorio, MIL-018 A). El equipo lo asigna quien lo crea. */
+export function createUnit(state: GameState, owner: CountryId, regionId: string, men: number = UNIT_MAX_MEN): Unit {
   const id = newId(state, 'u');
   const c = state.countries[owner];
   const n = unitsOf(state, owner).length + 1;
@@ -53,15 +54,16 @@ export function createUnit(state: GameState, owner: CountryId, regionId: string,
     id,
     owner,
     name: `${n}.º Batallón`,
-    men: UNIT_MAX_MEN,
-    org: training ? 40 : 100,
+    men,
+    org: 100,
     morale: clamp(50 + c.stability / 2, 0, 100),
     regionId,
     destination: null,
     path: [],
     progress: 0,
-    status: training ? 'training' : 'idle',
-    trainingHours: training ? TRAINING_HOURS : 0,
+    status: 'idle',
+    equipment: {},
+    recruitPending: 0,
   };
   // Evitar nombres repetidos tras bajas
   const names = new Set(unitsOf(state, owner).map((u) => u.name));
@@ -71,25 +73,47 @@ export function createUnit(state: GameState, owner: CountryId, regionId: string,
   return unit;
 }
 
-export function recruit(state: GameState, c: CountryId, regionId: string): ActionResult {
+/**
+ * Reclutamiento voluntario y progresivo (MIL-012 B, 013 A, 030 B): cada batallón
+ * nace operativo con un primer contingente de voluntarios, recibe equipo del
+ * inventario nacional y se completa día a día. El coste se paga al ordenarlo.
+ */
+export function recruit(state: GameState, c: CountryId, regionId: string, count = 1): ActionResult {
   const country = state.countries[c];
   const region = state.regions[regionId];
   if (!region) return fail('Región desconocida.');
   if (region.owner !== c || region.controller !== c) return fail('Solo se recluta en territorio propio no ocupado.');
-  const cost = recruitCost(state, c);
+  if (!Number.isInteger(count) || count < 1 || count > RECRUITMENT.maxPerOrder) return fail(`Se pueden reclutar de 1 a ${RECRUITMENT.maxPerOrder} batallones por orden.`);
+  const cost = recruitCost(state, c) * count;
   if (country.reserves < cost) return fail(`Reservas insuficientes (necesitas ${cost.toFixed(2)} mil M).`);
   country.reserves -= cost;
-  const u = createUnit(state, c, regionId, true);
-  log(state, 'military', `${countryName(c)} recluta el ${u.name} en ${REGIONS[regionId].name}.`, [c]);
-  return ok(`${u.name} en entrenamiento (15 días). Coste: ${cost.toFixed(2)} mil M.`);
+  const names: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const u = createUnit(state, c, regionId, RECRUITMENT.initialMen);
+    u.recruitPending = UNIT_MAX_MEN - RECRUITMENT.initialMen;
+    fillFromInventory(state, u);
+    names.push(u.name);
+  }
+  log(state, 'military', `${countryName(c)} recluta ${count === 1 ? `el ${names[0]}` : `${count} batallones`} en ${REGIONS[regionId].name}.`, [c]);
+  const days = Math.ceil((UNIT_MAX_MEN - RECRUITMENT.initialMen) / RECRUITMENT.menPerDay);
+  return ok(`${count === 1 ? names[0] : `${count} batallones`} en ${REGIONS[regionId].name}: operativo${count > 1 ? 's' : ''} con ${RECRUITMENT.initialMen} voluntarios; completo${count > 1 ? 's' : ''} en unos ${days} días. Coste: ${cost.toFixed(2)} mil M.`);
 }
 
 export function disband(state: GameState, c: CountryId, unitId: string): ActionResult {
   const u = state.units[unitId];
   if (!u || u.owner !== c) return fail('Batallón no válido.');
+  // El equipo vuelve a las reservas solo si el batallón está en territorio que controla su país.
+  const home = state.regions[u.regionId].controller === c;
+  if (home) returnToInventory(state, u);
   delete state.units[unitId];
   log(state, 'military', `${countryName(c)} desmoviliza el ${u.name}.`, [c]);
-  return ok(`${u.name} desmovilizado.`);
+  return ok(`${u.name} desmovilizado.${home ? ' Su equipo vuelve a las reservas.' : ' Su equipo se pierde fuera del territorio propio.'}`);
+}
+
+/** Activa o pausa la reposición automática de efectivos y equipo (MIL-019 B, 038 B). */
+export function setAutoReplenish(state: GameState, c: CountryId, enabled: boolean): ActionResult {
+  state.countries[c].autoReplenish = enabled;
+  return ok(enabled ? 'Reposición automática activada.' : 'Reposición automática en pausa.');
 }
 
 function travelHours(state: GameState, owner: CountryId, from: string, to: string): number {
@@ -127,7 +151,6 @@ export function findPath(state: GameState, owner: CountryId, from: string, to: s
 export function moveUnit(state: GameState, c: CountryId, unitId: string, target: string): ActionResult {
   const u = state.units[unitId];
   if (!u || u.owner !== c) return fail('Batallón no válido.');
-  if (u.status === 'training') return fail('El batallón aún está en entrenamiento.');
   if (u.status === 'retreating') return fail('El batallón está en retirada.');
   if (!state.regions[target]) return fail('Región desconocida.');
   if (target === u.regionId) {
@@ -172,15 +195,6 @@ export function retreat(state: GameState, u: Unit): void {
 /** Avance horario del movimiento. */
 export function hourlyMovement(state: GameState): void {
   for (const u of Object.values(state.units)) {
-    if (u.status === 'training') {
-      u.trainingHours -= 1;
-      if (u.trainingHours <= 0) {
-        u.status = 'idle';
-        u.trainingHours = 0;
-        if (u.owner === state.player) log(state, 'military', `El ${u.name} ha completado su entrenamiento.`, [u.owner]);
-      }
-      continue;
-    }
     if (!u.path.length) continue;
     if (u.status !== 'moving' && u.status !== 'retreating' && u.status !== 'combat') continue;
     const next = u.path[0];
@@ -212,7 +226,6 @@ export function hourlyMovement(state: GameState): void {
 /** Recuperación diaria: organización, moral y desgaste por falta de abastecimiento. */
 export function dailyMilitary(state: GameState): void {
   for (const u of Object.values(state.units)) {
-    if (u.status === 'training') continue;
     const c = state.countries[u.owner];
     const supply = Math.min(c.supplyRatio, 1.2);
     if (u.status === 'idle' || u.status === 'moving') {
@@ -228,8 +241,51 @@ export function dailyMilitary(state: GameState): void {
       c.casualties += loss;
       if (u.men < 150) {
         log(state, 'military', `El ${u.name} de ${countryName(u.owner)} se disuelve por falta de abastecimiento.`, [u.owner]);
+        if (state.regions[u.regionId].controller === u.owner) returnToInventory(state, u);
         delete state.units[u.id];
       }
     }
   }
+}
+
+/**
+ * Incorporación diaria de voluntarios y reposición automática (MIL-012, 019, 038).
+ * Solo en territorio controlado por el propio país y fuera de combate o retirada.
+ * Primero llegan los voluntarios ya reclutados; si la reposición está activa, se
+ * cubren las bajas (pagando como un reclutamiento) y se completa el equipo con el
+ * inventario nacional. Nunca se crea equipo: solo se mueve desde las reservas.
+ */
+export function dailyReplenishment(state: GameState): void {
+  for (const u of Object.values(state.units)) {
+    if (u.status === 'combat' || u.status === 'retreating') continue;
+    if (state.regions[u.regionId].controller !== u.owner) continue;
+    const c = state.countries[u.owner];
+    let capacity = Math.min(RECRUITMENT.menPerDay, UNIT_MAX_MEN - u.men);
+    const arrive = Math.min(capacity, u.recruitPending);
+    u.men += arrive;
+    u.recruitPending -= arrive;
+    capacity -= arrive;
+    if (!c.autoReplenish) continue;
+    const deficit = UNIT_MAX_MEN - u.men - u.recruitPending;
+    const perMan = recruitCost(state, u.owner) / UNIT_MAX_MEN;
+    const buy = Math.min(capacity, Math.max(0, deficit), Math.floor(c.reserves / perMan));
+    if (buy > 0) {
+      c.reserves -= buy * perMan;
+      u.men += buy;
+    }
+    fillFromInventory(state, u);
+  }
+}
+
+/** Horas que faltan para que el batallón llegue a su destino al ritmo actual (MIL-033). */
+export function etaHours(state: GameState, u: Unit): number {
+  if (!u.path.length) return 0;
+  const orgFactor = u.status === 'retreating' ? 1 : 0.6 + 0.4 * (u.org / 100);
+  let from = u.regionId, total = 0;
+  u.path.forEach((to, i) => {
+    const h = travelHours(state, u.owner, from, to) / orgFactor;
+    total += i === 0 ? h * (1 - u.progress) : h;
+    from = to;
+  });
+  return total;
 }

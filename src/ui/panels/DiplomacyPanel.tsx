@@ -16,8 +16,8 @@ function Hint({ state, to, input }: { state: GameState; to: CountryId; input: Pr
   return <span className={`hint ${ev.accept ? 'good-text' : 'bad-text'}`}>Asesores: {ev.accept ? 'probablemente acepte' : 'probablemente rechace'} ({ev.reason})</span>;
 }
 
-export function DiplomacyPanel({ state }: { state: GameState }) {
-  const [sel, setSel] = useState<CountryId | null>(null);
+export function DiplomacyPanel({ state, initialCountry = null }: { state: GameState; initialCountry?: CountryId | null }) {
+  const [sel, setSel] = useState<CountryId | null>(initialCountry && initialCountry !== state.player ? initialCountry : null);
   const [aid, setAid] = useState('');
   const me = state.player;
   const others = COUNTRY_IDS.filter((c) => c !== me);

@@ -1,9 +1,17 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Pruebas de interfaz táctil. Sirve dist/ por HTTP (IndexedDB real).
+ * Pruebas de interfaz táctil en horizontal. Sirve dist/ por HTTP (IndexedDB real).
  * Requiere haber ejecutado `npm run build` antes.
+ *
+ * Se emula el iPhone (pantalla, táctil, userAgent) sobre Chromium. WebKit (el
+ * motor de Safari) se puede añadir con PW_WEBKIT=1 tras `npx playwright install webkit`.
  */
+const landscape = [
+  { name: 'iphone15promax-landscape', device: devices['iPhone 15 Pro Max landscape'] },
+  { name: 'iphoneSE-landscape', device: devices['iPhone SE landscape'] },
+];
+
 export default defineConfig({
   testDir: 'tests/e2e',
   timeout: 90_000,
@@ -14,9 +22,7 @@ export default defineConfig({
     reuseExistingServer: true,
   },
   projects: [
-    // Emulación de iPhone (pantalla, táctil, userAgent) sobre Chromium.
-    { name: 'iphone-chromium', use: { ...devices['iPhone 13'], browserName: 'chromium' } },
-    // WebKit real (motor de Safari) si está instalado: npx playwright install webkit
-    ...(process.env.PW_WEBKIT ? [{ name: 'iphone-webkit', use: { ...devices['iPhone 13'] } }] : []),
+    ...landscape.map((p) => ({ name: p.name, use: { ...p.device, browserName: 'chromium' as const } })),
+    ...(process.env.PW_WEBKIT ? landscape.map((p) => ({ name: `${p.name}-webkit`, use: { ...p.device } })) : []),
   ],
 });

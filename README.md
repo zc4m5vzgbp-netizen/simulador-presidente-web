@@ -4,11 +4,15 @@ Juego de estrategia geopolítica por turnos en tiempo real, ambientado en Sudam�
 
 Funciona en el navegador (también en iPhone, con controles táctiles), sin servidor: toda la simulación corre en el dispositivo y las partidas se guardan en IndexedDB.
 
+## Interfaz (UI-001)
+
+Diseñada para jugar **en horizontal** en iPhone: barra superior con los indicadores del país y el tiempo, navegación lateral (Mapa, Economía, Diplomacia, Ejército, Gobierno, Investigación, Espionaje, Estadísticas), mapa en el centro y un panel derecho contraíble que muestra el país, la región o los batallones seleccionados. En vertical aparece un aviso para girar el teléfono y la partida se pausa (Safari no permite bloquear la orientación desde una web). Gobierno, Investigación y Espionaje están marcadas como "en desarrollo". El mapa está organizado en capas (`src/ui/map/layers.ts`) con huecos reservados para carreteras, pasos fronterizos, ciudades, puertos y aeropuertos, todavía vacíos.
+
 ## Cómo jugar
 
 - **Tiempo**: pausa, normal (1 día = 60 s), rápida (×10) y muy rápida (×60). La partida empieza en pausa el 1 de enero de 2027.
 - **Mapa**: arrastra para moverte, pellizca para hacer zoom. Toca una región para ver su información.
-- **Mover tropas**: toca un marcador de tus batallones (borde oscuro, número dorado) y luego la región de destino. Solo puedes entrar en territorio propio, aliado o de un país con el que estés en guerra.
+- **Mover tropas**: toca un marcador de tus batallones (número dorado), pulsa **Mover** en el panel derecho y luego toca la región de destino. Solo puedes entrar en territorio propio, aliado o de un país con el que estés en guerra.
 - **Guerra**: Diplomacia → país → *Declarar la guerra*. Las regiones sin defensores se ocupan tras 1 día (2 días las capitales). La ocupación transfiere el 50 % de su PIB al ocupante. La paz se negocia en Diplomacia: *paz blanca* (se devuelve todo) o *status quo* (cada uno se queda lo que ocupa).
 - **Economía**: ajusta impuestos, gasto, inversión y presupuesto militar; el panel muestra la proyección antes de aplicar. Si te quedas sin reservas, el déficit se cubre con deuda.
 - **Derrota**: pierdes si tu país queda sin territorio o si la estabilidad llega a 3.
@@ -24,8 +28,8 @@ npm run serve        # http://localhost:4173
 ## Pruebas
 
 ```bash
-npm test             # 42 pruebas del motor (node:test)
-npm run build && npx playwright install chromium && npm run test:e2e   # 6 pruebas táctiles
+npm test             # 43 pruebas del motor (node:test), incluida la carga de una partida de la beta 1.0
+npm run build && npx playwright install chromium && npm run test:e2e   # 14 pruebas táctiles × 2 tamaños de iPhone en horizontal
 ```
 
 ## Desplegar en Cloudflare Pages

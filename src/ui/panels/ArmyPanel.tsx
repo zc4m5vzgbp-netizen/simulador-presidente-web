@@ -7,7 +7,7 @@ import { warsOf } from '../../engine/war';
 import { controller } from '../controller';
 import { ConfirmButton, CountryTag, Meter, Section, Stat } from '../widgets';
 import { money, pct, int } from '../format';
-import { UnitCard } from './RegionPanel';
+import { UnitCard } from './UnitCard';
 
 export function ArmyPanel({ state, onFocusUnit }: { state: GameState; onFocusUnit: (unitId: string) => void }) {
   const me = state.player;

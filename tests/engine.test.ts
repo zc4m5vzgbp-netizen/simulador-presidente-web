@@ -358,3 +358,18 @@ describe('Integridad del mapa', () => {
     assert.equal(seen.size, ids.length);
   });
 });
+
+describe('Compatibilidad de partidas guardadas', () => {
+  test('una partida guardada con la beta 1.0 publicada carga y sigue simulando', async () => {
+    const { readFileSync } = await import('node:fs');
+    const record = JSON.parse(readFileSync(new URL('./fixtures/save-v1-beta1.json', import.meta.url), 'utf8'));
+    const storage = new MemoryStorage();
+    await storage.put(record);
+    const s = await loadGame(storage, record.slot);
+    assert.equal(s.player, 'VEN');
+    assert.equal(s.hour, 48);
+    assert.ok(atWar(s, 'VEN', 'GUY'));
+    advanceDays(s, 5);
+    assert.equal(s.hour, 48 + 120);
+  });
+});

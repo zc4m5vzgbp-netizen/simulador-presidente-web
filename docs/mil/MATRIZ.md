@@ -181,3 +181,11 @@ Resumen: No implementado: 72 · Cumple: 67 · Parcial: 22 · A cotejar: 7 · Pro
 | 169 | B | Pruebas automatizadas + iPhone | — | Proceso | Unitarias, e2e emuladas; iPhone real lo valida el usuario |
 | 170 | B | Proteger Atlas | — | Proceso | Pruebas e2e de Atlas obligatorias en cada PR |
 | 171 | B | Documento maestro, matriz y pruebas | F0 | Cumple | `docs/mil/` |
+
+## Decisiones adicionales aprobadas
+
+| Decisión | Contenido | Fase | Estado | Dónde / nota |
+|---|---|---|---|---|
+| F2-001 A | Sin bonificación territorial defensiva | F2 | Cumple | `DEFENDER_BONUS` eliminado; prueba de igualdad |
+| F2-002 A | Sin moral ni organización en el cálculo militar | F2 | Cumple | Campos eliminados del estado; pruebas |
+| MIL-MOV-001 B | Movimiento terrestre al 25 % del tiempo anterior | F2 | Cumple | `LAND_SPEED_MULTIPLIER = 4` en `travelHours` (`military.ts`); `docs/mil/MOV-001.md` |

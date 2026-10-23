@@ -19,7 +19,10 @@ export function realMinutes(hours: number, multiplier: number): number {
 }
 
 function fmtMin(min: number): string {
-  if (min < 1) return 'menos de 1 min';
+  const secs = Math.round(min * 60);
+  if (secs < 60) return `${secs} s`;
+  // Marchas cortas (MIL-MOV-001): minutos y segundos, para que coincida con lo que ve el jugador.
+  if (min < 10) return `${Math.floor(secs / 60)} min${secs % 60 ? ` ${secs % 60} s` : ''}`;
   if (min < 60) return `${Math.round(min)} min`;
   const h = Math.floor(min / 60), m = Math.round(min % 60);
   return `${h} h${m ? ` ${m} min` : ''}`;

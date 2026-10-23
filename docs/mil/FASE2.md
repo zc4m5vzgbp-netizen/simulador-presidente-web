@@ -77,3 +77,7 @@ Detalle completo en `INCIDENCIAS.md` y estrategia de pruebas en `REGRESION.md`.
 
 - Los coeficientes provisionales determinan la duración y letalidad de las batallas; conviene validarlos jugando.
 - El ritmo de 5 min/día hace que las batallas duren minutos u horas reales a ×1.
+
+## MIL-MOV-001 — movimiento terrestre al 25 % (decisión aprobada)
+
+`LAND_SPEED_MULTIPLIER = 4` en `travelHours` (`src/engine/military.ts`): Buenos Aires → Uruguay pasa de 132 h a 33 h de juego (≈ 7 min → ≈ 1 min 43 s a ×4). Detalle, pruebas y compatibilidad de guardados en `MOV-001.md`.

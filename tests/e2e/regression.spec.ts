@@ -13,6 +13,25 @@ import { fastTime, game, regionPoint, startGame } from './helpers';
 
 const hour = (page: Page) => game<number>(page, 's.hour');
 
+/** «llegada en 1 d 9 h (…)» → 33 horas de juego. */
+function parseGameDuration(text: string): number {
+  const m = text.match(/llegada en (?:(\d+) d)?\s*(?:(\d+) h)?/);
+  if (!m) throw new Error(`Sin estimación en: ${text}`);
+  return Number(m[1] ?? 0) * 24 + Number(m[2] ?? 0);
+}
+
+/** Registra dentro de la página la hora de juego (y el instante real) en que el batallón entra en la región. */
+async function watchArrival(page: Page, unitId: string, regionId: string) {
+  await page.evaluate(([id, r]) => {
+    const w = window as unknown as { __game: { state: { hour: number; units: Record<string, { regionId: string }> } }; __arrival: number | null; __arrivalMs: number | null };
+    w.__arrival = null; w.__arrivalMs = null;
+    const t = setInterval(() => {
+      const u = w.__game.state.units[id];
+      if (u && u.regionId === r) { w.__arrival = w.__game.state.hour; w.__arrivalMs = performance.now(); clearInterval(t); }
+    }, 5);
+  }, [unitId, regionId] as const);
+}
+
 test.describe('Regresión: reloj real', () => {
   test('pausa, ×1, ×2 y ×4 avanzan en tiempo real (sin acelerar) y la hora visible cambia', async ({ page }) => {
     test.setTimeout(120_000);
@@ -87,11 +106,17 @@ test.describe('Regresión: recorrido Argentina ataca Uruguay', () => {
     await page.locator('[data-action="confirm-attack"]').tap();
     expect(await game<string>(page, 's.wars[0].name')).toContain('Argentina contra Uruguay');
     const id = await game<string>(page, "Object.values(s.units).find(u => u.owner === 'ARG' && u.destination === 'UY').id");
-    await expect(page.locator('.toast').filter({ hasText: 'llegada en' })).toBeVisible();
+    const notice = page.locator('.toast').filter({ hasText: 'llegada en' });
+    await expect(notice).toBeVisible();
+    // MIL-MOV-001: la estimación mostrada al jugador (≈ 33 h; antes 132 h).
+    const etaShown = parseGameDuration((await notice.textContent())!);
+    expect(etaShown).toBeGreaterThanOrEqual(31);
+    expect(etaShown).toBeLessThanOrEqual(35);
+    const orderHour = await hour(page);
 
     // 3) El tiempo avanza y la marcha progresa de forma visible en el mapa.
+    await fastTime(page, 4); // ≈ 0,2 s por hora: la barra se puede observar crecer
     await page.locator('[data-speed="3"]').tap();
-    await fastTime(page, 60);
     await expect.poll(() => game<number>(page, `s.units['${id}'].progress`), { timeout: 20_000 }).toBeGreaterThan(0.05);
     await expect(page.locator(`[data-moving="${id}"] .march-progress`)).toBeVisible();
     const shown1 = Number(await page.locator(`[data-moving="${id}"] .march-progress`).getAttribute('data-progress'));
@@ -100,7 +125,13 @@ test.describe('Regresión: recorrido Argentina ataca Uruguay', () => {
     // 4) Llegada y batalla EN URUGUAY. Acelerador moderado: con uno muy alto, entre dos
     // comprobaciones pasarían cientos de horas (marcha, batalla y retirada completas).
     await fastTime(page, 40);
-    await expect.poll(() => game<boolean>(page, `!!(s.battles.UY || s.battleReports.some(r => r.regionId === 'UY' && r.entry['${id}']) || (s.units['${id}'] && s.units['${id}'].regionId === 'UY'))`), { timeout: 60_000 }).toBe(true);
+    // Llegada exactamente a la hora estimada. Fuente exacta registrada por el propio motor:
+    // la batalla de Uruguay empieza en la misma hora en que llega el batallón (con carga
+    // de CPU el reloj procesa varias horas por fotograma y un observador externo llegaría tarde).
+    await expect.poll(() => game<boolean>(page, `!!(s.battles.UY || s.battleReports.some(r => r.regionId === 'UY'))`), { timeout: 60_000 }).toBe(true);
+    const battle = await game<{ startHour: number; entry: Record<string, unknown> }>(page, "s.battles.UY ?? s.battleReports.find(r => r.regionId === 'UY')");
+    expect(Object.keys(battle.entry)).toContain(id);
+    expect(battle.startHour - orderHour).toBe(etaShown);
     await expect.poll(() => game<boolean>(page, `!!(s.battles.UY || s.battleReports.some(r => r.regionId === 'UY'))`), { timeout: 60_000 }).toBe(true);
     await fastTime(page, 200);
 
@@ -208,5 +239,34 @@ test.describe('Regresión: funciones esenciales', () => {
     await expect(page.locator('.state-card, .region-card').first()).toBeVisible();
     await page.locator('[data-action="toggle-panel"]').tap();
     await expect(page.locator('[data-action="toggle-panel"]')).toHaveAttribute('aria-expanded', 'false');
+  });
+});
+
+test.describe('Regresión: MIL-MOV-001 en tiempo real', () => {
+  test('Argentina → Uruguay a ×4 SIN acelerar: la estimación dice ≈ 1 min 43 s reales y llega en ese tiempo', async ({ page }) => {
+    test.setTimeout(240_000);
+    await startGame(page, 'ARG');
+    await page.evaluate(() => { const g = (window as any).__game; for (const c of Object.keys(g.state.ai)) g.state.ai[c].aggression = 0; });
+    expect(await game<number>(page, 'g.timeScale')).toBe(1);
+    await page.locator('[data-units="AR_BA"][data-owner="ARG"]').tap();
+    await page.locator('[data-action="move"]').tap();
+    const p = await regionPoint(page, 'UY');
+    await page.touchscreen.tap(p.x, p.y);
+    await page.waitForTimeout(600);
+    await page.locator('[data-action="confirm-attack"]').tap();
+    const notice = page.locator('.toast').filter({ hasText: 'llegada en' });
+    await expect(notice).toContainText('1 min 43 s reales a ×4');
+    const id = await game<string>(page, "Object.values(s.units).find(u => u.owner === 'ARG' && u.destination === 'UY').id");
+    const eta = parseGameDuration((await notice.textContent())!);
+    await watchArrival(page, id, 'UY');
+    const t0 = await page.evaluate(() => performance.now());
+    await page.locator('[data-speed="3"]').tap();
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __arrivalMs: number | null }).__arrivalMs), { timeout: 180_000, intervals: [1000] }).not.toBeNull();
+    const seconds = ((await page.evaluate(() => (window as unknown as { __arrivalMs: number }).__arrivalMs)) - t0) / 1000;
+    console.log(`[MIL-MOV-001] ${test.info().project.name}: estimación ${eta} h de juego; llegada real a ×4 en ${seconds.toFixed(1)} s`);
+    // 1 h de juego = 3,125 s reales a ×4.
+    expect(Math.abs(seconds - eta * 3.125)).toBeLessThan(6);
+    expect(seconds).toBeGreaterThan(90);
+    expect(seconds).toBeLessThan(120);
   });
 });

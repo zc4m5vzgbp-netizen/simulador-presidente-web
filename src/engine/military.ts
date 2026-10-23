@@ -9,9 +9,20 @@ import { SUPPLY } from '../data/military';
 
 /** Máximo de efectivos por batallón (plantilla universal). */
 export const UNIT_MAX_MEN = BATTALION_TEMPLATE.maxMen;
-/** Velocidad base en unidades de mapa por hora (≈3 días entre regiones vecinas). */
+/** Velocidad base en unidades de mapa por hora, antes del multiplicador terrestre. */
 export const BASE_SPEED = 1.4;
+/** Territorio hostil: la marcha va al 65 % (regla aprobada, sin cambios). */
 export const HOSTILE_SPEED_FACTOR = 0.65;
+/**
+ * MIL-MOV-001 (opción B, aprobada): multiplicador GLOBAL de la velocidad de los
+ * batallones terrestres. ×4 = cada tramo dura el 25 % de lo que duraba antes
+ * (Buenos Aires → Uruguay: 132 h → 33 h de juego). Se aplica en un único sitio,
+ * `travelHours`, del que dependen las rutas, el avance horario, las retiradas
+ * y la llegada estimada; igual para el jugador y la IA. No toca el reloj global,
+ * la duración del día, el combate ni el consumo de combustible por hora.
+ * Antes de MIL-MOV-001 equivalía a 1 (≈ 3 días entre regiones vecinas).
+ */
+export const LAND_SPEED_MULTIPLIER = 4;
 
 export function unitsOf(state: GameState, c: CountryId): Unit[] {
   return Object.values(state.units).filter((u) => u.owner === c);
@@ -121,9 +132,10 @@ export function setAutoReplenish(state: GameState, c: CountryId, enabled: boolea
   return ok(enabled ? 'Reposición automática activada.' : 'Reposición automática en pausa.');
 }
 
-function travelHours(state: GameState, owner: CountryId, from: string, to: string): number {
+/** Horas de juego de un tramo entre regiones vecinas (con combustible suficiente). Única fuente de la duración de las marchas. */
+export function travelHours(state: GameState, owner: CountryId, from: string, to: string): number {
   const hostile = state.regions[to].controller !== owner && !sameSide(state, owner, state.regions[to].controller);
-  return distance(from, to) / (BASE_SPEED * (hostile ? HOSTILE_SPEED_FACTOR : 1));
+  return distance(from, to) / (BASE_SPEED * LAND_SPEED_MULTIPLIER * (hostile ? HOSTILE_SPEED_FACTOR : 1));
 }
 
 /** Ruta más rápida (Dijkstra) por regiones transitables. Devuelve la lista sin el origen. */

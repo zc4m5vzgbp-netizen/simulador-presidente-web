@@ -87,7 +87,7 @@ npm run serve        # http://localhost:4173
 
 ```bash
 npm test             # 120 pruebas: motor (43, incluida la carga de una partida de la beta 1.0), cartografía (16), encuadre del mapa (4), atlas (7), escalas/simbología (7), ejército (15) y combate (28)
-npm run build && npx playwright install chromium && npm run test:e2e   # 61 pruebas táctiles × 2 tamaños (incluida la regresión integral: npm run test:regression) de iPhone en horizontal
+npm run build && npx playwright install chromium && npm run test:e2e   # 61 pruebas táctiles × 2 tamaños de iPhone en horizontal, incluida la regresión integral (npm run test:regression)
 SHOTS=1 npx playwright test screenshots   # capturas en docs/map-001/
 ```
 

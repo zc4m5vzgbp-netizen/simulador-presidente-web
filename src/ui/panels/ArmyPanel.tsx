@@ -5,6 +5,7 @@ import { countryPower, recruitCost, unitsOf, upkeepNeeded } from '../../engine/m
 import { BATTALION_TEMPLATE, RECRUITMENT, nationalEquipment, unitsTotals } from '../../engine/equipment';
 import { CATEGORY_LABEL } from '../../data/military';
 import { annualFlows } from '../../engine/economy';
+import { formatDate } from '../../engine/core';
 import { warsOf } from '../../engine/war';
 import { controller } from '../controller';
 import { ConfirmButton, CountryTag, Meter, Section, Stat } from '../widgets';
@@ -19,7 +20,7 @@ const BRANCHES: { id: Branch; label: string; pending?: string }[] = [
   { id: 'navy', label: 'Armada', pending: 'Armada: fase 5 del plan. Todavía no existe en el juego.' },
 ];
 
-export function ArmyPanel({ state, onFocusUnit }: { state: GameState; onFocusUnit: (unitId: string) => void }) {
+export function ArmyPanel({ state, onFocusUnit, onOpenBattle }: { state: GameState; onFocusUnit: (unitId: string) => void; onOpenBattle: (battleId: string) => void }) {
   const me = state.player;
   const c = state.countries[me];
   const units = unitsOf(state, me);
@@ -31,6 +32,7 @@ export function ArmyPanel({ state, onFocusUnit }: { state: GameState; onFocusUni
   const mil = annualFlows(state, me).military;
   const wars = warsOf(state, me);
   const battles = Object.values(state.battles).filter((b) => b.participants.includes(me));
+  const reports = state.battleReports.filter((b) => b.participants.includes(me)).slice().reverse();
   const totals = unitsTotals(units);
   const inventory = nationalEquipment(state, me);
   const days = Math.ceil((BATTALION_TEMPLATE.maxMen - RECRUITMENT.initialMen) / RECRUITMENT.menPerDay);
@@ -39,7 +41,7 @@ export function ArmyPanel({ state, onFocusUnit }: { state: GameState; onFocusUni
     <div className="panel-body">
       <div className="stat-grid">
         <Stat label="Batallones" value={units.length} sub={`${int(totals.men)} efectivos${totals.pending ? ` · +${int(totals.pending)} en camino` : ''}`} />
-        <Stat label="Fuerza total" value={countryPower(state, me).toFixed(0)} />
+        <Stat label="Potencia total" value={countryPower(state, me).toFixed(0)} />
         <Stat label="Presupuesto militar" value={`${money(mil)}/año`} sub={pct(c.policy.militaryBudget) + ' del PIB'} />
         <Stat label="Mantenimiento" value={`${money(need)}/año`} sub={`${money(c.unitCost)} por batallón`} />
       </div>
@@ -86,7 +88,7 @@ export function ArmyPanel({ state, onFocusUnit }: { state: GameState; onFocusUni
         {branch === 'land' ? (
           <>
             <ul className="inv-list" data-testid="inventory-land">
-              {inventory.map(({ model, assigned, reserve }) => (
+              {inventory.map(({ model, assigned, reserve, damaged, lost }) => (
                 <li key={model.id} className="inv-item" data-model={model.id}>
                   <Silhouette kind={model.category} width={40} />
                   <div className="inv-main">
@@ -94,13 +96,15 @@ export function ArmyPanel({ state, onFocusUnit }: { state: GameState; onFocusUni
                     <div className="inv-figs">
                       <span><b>{int(assigned)}</b> en batallones</span>
                       <span><b data-testid={`reserve-${model.id}`}>{int(reserve)}</b> en reserva</span>
+                      {damaged > 0 && <span className="warn-text"><b data-testid={`damaged-${model.id}`}>{int(damaged)}</b> dañados</span>}
+                      {lost > 0 && <span className="bad-text"><b data-testid={`lost-${model.id}`}>{int(lost)}</b> perdidos</span>}
                     </div>
                     <div className="inv-stats muted">Tripulación {model.crew} · Fuego {model.stats.firepower} · Protección {model.stats.protection} · Movilidad {model.stats.mobility}</div>
                   </div>
                 </li>
               ))}
             </ul>
-            <p className="notice prov small-text">Modelos, estadísticas, tripulaciones y cantidades son <strong>datos provisionales de prueba</strong>, no equipos reales. Las estadísticas aún no influyen en el combate (fase 2). Fabricación y compra: fase 3.</p>
+            <p className="notice prov small-text">Modelos, estadísticas, tripulaciones y cantidades son <strong>datos provisionales de prueba</strong>, no equipos reales. Las estadísticas de fuego y protección intervienen en el combate con coeficientes provisionales. Sin fabricación ni compra hasta la fase 3: lo perdido no se repone.</p>
           </>
         ) : (
           <p className="notice muted" data-testid={`branch-pending-${branch}`}>{BRANCHES.find((b) => b.id === branch)!.pending}</p>
@@ -120,7 +124,25 @@ export function ArmyPanel({ state, onFocusUnit }: { state: GameState; onFocusUni
               <div className="muted small-text">Bajas: {Object.entries(w.casualties).map(([k, v]) => `${countryName(k as never)} ${int(v ?? 0)}`).join(' · ') || 'ninguna aún'}</div>
             </div>
           ))}
-          {battles.length > 0 && <p className="notice bad">Batallas en curso: {battles.map((b) => REGIONS[b.regionId].name).join(', ')}</p>}
+        </Section>
+      )}
+
+      {(battles.length > 0 || reports.length > 0) && (
+        <Section title="Batallas e informes">
+          <ul className="battle-list">
+            {battles.map((b) => (
+              <li key={b.id}><button type="button" className="link-row" data-battle-link={b.id} onClick={() => onOpenBattle(b.id)}>
+                <span className="chip st-combat">En curso</span><span className="link-row-label">{REGIONS[b.regionId].name}</span>
+                <span className="link-row-hint">{int(b.losses[me] ?? 0)} bajas</span>
+              </button></li>
+            ))}
+            {reports.map((b) => (
+              <li key={b.id}><button type="button" className="link-row" data-report-link={b.id} onClick={() => onOpenBattle(b.id)}>
+                <span className="chip">{b.winners.includes(me) ? 'Victoria' : b.winners.length ? 'Derrota' : 'Indecisa'}</span><span className="link-row-label">{REGIONS[b.regionId].name}</span>
+                <span className="link-row-hint">{formatDate(b.endHour)}</span>
+              </button></li>
+            ))}
+          </ul>
         </Section>
       )}
 

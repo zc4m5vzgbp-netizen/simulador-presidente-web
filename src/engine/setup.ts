@@ -40,6 +40,8 @@ export function createNewGame(player: CountryId, seed = Date.now() >>> 0): GameS
       eliminated: false,
       inventory: initialInventory(id, d.units),
       autoReplenish: true,
+      inventoryDamaged: {},
+      equipmentLost: {},
     };
   }
 
@@ -89,6 +91,7 @@ export function createNewGame(player: CountryId, seed = Date.now() >>> 0): GameS
     wars: [],
     truces: {},
     battles: {},
+    battleReports: [],
     proposals: [],
     ai,
     log: [],

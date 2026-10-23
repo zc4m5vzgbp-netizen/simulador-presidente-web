@@ -17,8 +17,10 @@ export default defineConfig({
   timeout: 90_000,
   // En CI, cada fallo aparece como anotación en GitHub.
   reporter: process.env.CI ? [['github'], ['list']] : 'list',
-  use: { baseURL: 'http://127.0.0.1:4173' },
-  webServer: {
+  // E2E_BASE_URL permite ejecutar las pruebas contra otra copia servida de la
+  // compilación (p. ej. la página exacta de la vista previa descargada).
+  use: { baseURL: process.env.E2E_BASE_URL ?? 'http://127.0.0.1:4173' },
+  webServer: process.env.E2E_BASE_URL ? undefined : {
     command: 'python3 -m http.server 4173 --bind 127.0.0.1 --directory dist',
     url: 'http://127.0.0.1:4173/index.html',
     reuseExistingServer: true,

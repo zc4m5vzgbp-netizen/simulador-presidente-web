@@ -7,6 +7,7 @@ import type { GameState } from './types';
 import { HOURS_PER_DAY, monthIndex } from './core';
 import { hourlyMovement, dailyMilitary, dailyReplenishment } from './military';
 import { hourlyCombat, hourlyOccupation } from './war';
+import { dailySupplyAndRepair } from './combat';
 import { dailyEconomy, monthlyClose } from './economy';
 import { expireProposals, monthlyDiplomacy } from './diplomacy';
 import { hourlyAI } from './ai';
@@ -37,6 +38,7 @@ export function stepHour(state: GameState): void {
     dailyEconomy(state);
     dailyMilitary(state);
     dailyReplenishment(state);
+    dailySupplyAndRepair(state);
     expireProposals(state);
   }
   if (monthIndex(state.hour) !== prevMonth) {

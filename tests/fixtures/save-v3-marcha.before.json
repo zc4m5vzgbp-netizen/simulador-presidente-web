@@ -1,0 +1,24 @@
+{
+  "hour": 40,
+  "marches": {
+    "u1": {
+      "regionId": "AR_BA",
+      "path": [
+        "UY"
+      ],
+      "destination": "UY",
+      "progress": 0.30479434458585836,
+      "etaBefore": 92
+    },
+    "u2": {
+      "regionId": "AR_NO",
+      "path": [
+        "AR_BA",
+        "AR_PA"
+      ],
+      "destination": "AR_PA",
+      "progress": 0.2425313664900586,
+      "etaBefore": 315
+    }
+  }
+}

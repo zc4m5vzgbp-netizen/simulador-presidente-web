@@ -5,7 +5,8 @@
  */
 import type { GameState, Unit } from '../../engine/types';
 import { REGIONS } from '../../engine/world';
-import { etaHours } from '../../engine/military';
+import { etaHours, unitPower } from '../../engine/military';
+import { SUPPLY } from '../../data/military';
 import { BATTALION_TEMPLATE, EQUIP_CATEGORIES, crewReport, modelOf, type EquipCategory } from '../../engine/equipment';
 import { CATEGORY_LABEL } from '../../data/military';
 import { int, STATUS_LABEL } from '../format';
@@ -14,21 +15,30 @@ import { MilitarySymbolIcon } from '../military/MilitarySymbol';
 import { Silhouette } from '../military/Silhouette';
 import { UNIT_ECHELON, affiliationOf, unitCategory } from '../military/symbology';
 
-/** Duración en tiempo de juego: «2 d 5 h». */
-export function formatDuration(hours: number): string {
-  const h = Math.max(1, Math.ceil(hours));
-  const d = Math.floor(h / 24), r = h % 24;
-  return d ? `${d} d${r ? ` ${r} h` : ''}` : `${r} h`;
+/** Indicador discreto de suministros: 5 segmentos (MIL-140). */
+export function SupplyPips({ label, value, testId }: { label: string; value: number; testId: string }) {
+  const on = Math.round(value * 5);
+  return (
+    <span className={`pips${value < SUPPLY.shortage ? ' low' : ''}`} data-testid={testId} data-value={value.toFixed(2)} aria-label={`${label}: ${Math.round(value * 100)} %`}>
+      <span className="pips-label">{label}</span>
+      {[0, 1, 2, 3, 4].map((i) => <span key={i} className={i < on ? 'pip on' : 'pip'} />)}
+    </span>
+  );
 }
 
-export interface EquipRow { kind: EquipCategory | 'infantry'; total: number; active: number; max: number }
+import { formatGameDuration } from '../arrival';
+/** Duración en tiempo de juego: «2 d 5 h». */
+export const formatDuration = formatGameDuration;
+
+export interface EquipRow { kind: EquipCategory | 'infantry'; total: number; active: number; damaged?: number; max: number }
 
 /** Rejilla ilustrada: infantería + las cinco categorías de la plantilla. */
 export function EquipmentGrid({ rows, testId }: { rows: EquipRow[]; testId?: string }) {
   return (
     <ul className="equip-grid" data-testid={testId}>
       {rows.map((r) => {
-        const inactive = r.total - r.active;
+        const damaged = r.damaged ?? 0;
+        const inactive = r.total - damaged - r.active;
         const label = r.kind === 'infantry' ? 'Infantería' : CATEGORY_LABEL[r.kind].many;
         return (
           <li key={r.kind} className={`equip-row${r.total === 0 ? ' empty' : ''}`} data-equip={r.kind}>
@@ -41,8 +51,14 @@ export function EquipmentGrid({ rows, testId }: { rows: EquipRow[]; testId?: str
             <span className="equip-bar" aria-hidden="true">
               <span className="equip-bar-active" style={{ width: `${(100 * r.active) / Math.max(1, r.max)}%` }} />
               <span className="equip-bar-idle" style={{ width: `${(100 * inactive) / Math.max(1, r.max)}%` }} />
+              <span className="equip-bar-damaged" style={{ width: `${(100 * damaged) / Math.max(1, r.max)}%` }} />
             </span>
-            {inactive > 0 && <span className="equip-note warn" data-testid={`inactive-${r.kind}`}>{int(inactive)} sin tripulación</span>}
+            {(inactive > 0 || damaged > 0) && (
+              <span className="equip-note">
+                {inactive > 0 && <span className="warn-text" data-testid={`inactive-${r.kind}`}>{int(inactive)} sin tripulación</span>}
+                {damaged > 0 && <span className="bad-text" data-testid={`damaged-${r.kind}`}>{int(damaged)} dañados</span>}
+              </span>
+            )}
           </li>
         );
       })}
@@ -76,6 +92,9 @@ export function UnitCard({ state, u, selected, onToggle, detail }: { state: Game
         {dest && <> → {dest} <span className="eta" data-testid="unit-eta">· llega en {formatDuration(etaHours(state, u))}</span></>}
       </span>
       {u.recruitPending > 0 && <span className="unit-meta recruiting" data-testid="unit-pending">+{int(u.recruitPending)} voluntarios por incorporarse</span>}
+      {(u.ammo < SUPPLY.shortage || u.fuel < SUPPLY.shortage) && !detail && (
+        <span className="unit-meta shortage">{u.ammo < SUPPLY.shortage ? 'Escasez de munición' : 'Escasez de combustible'}</span>
+      )}
       {!detail && (
         <span className="equip-mini" aria-label="Equipo">
           {EQUIP_CATEGORIES.map((cat) => (
@@ -92,6 +111,11 @@ export function UnitCard({ state, u, selected, onToggle, detail }: { state: Game
     return (
       <div className={`unit-card detail${selected ? ' selected' : ''}`} data-unit-id={u.id}>
         {body}
+        <div className="unit-supply">
+          <span className="unit-power">Potencia <strong data-testid="unit-power">{unitPower(state, u).toLocaleString('es', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</strong></span>
+          <SupplyPips label="Munición" value={u.ammo} testId="ammo" />
+          <SupplyPips label="Combustible" value={u.fuel} testId="fuel" />
+        </div>
         <EquipmentGrid rows={unitRows(u)} testId="unit-equipment" />
         <p className="muted small-text">Tripulación asignada automáticamente: {int(report.crew)} efectivos{report.crewNeeded > report.crew ? ` (faltan ${int(report.crewNeeded - report.crew)})` : ''}. El resto es infantería.</p>
         {models.length > 0 && (

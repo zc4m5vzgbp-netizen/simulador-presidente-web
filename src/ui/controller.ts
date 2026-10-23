@@ -29,8 +29,11 @@ export class GameController {
   private last = 0;
   private toastId = 0;
   private lastAutosaveMonth = -1;
-  /** Solo para pruebas automatizadas: acelera el reloj sin cambiar las reglas (1 = tiempo real). */
+  /** Solo para pruebas automatizadas y la vista previa de verificación: acelera el reloj sin cambiar las reglas (1 = tiempo real). */
   timeScale = 1;
+  /** Error interno del motor, si lo hubo: el reloj se detiene y se avisa en pantalla (nunca en silencio). */
+  fatal: string | null = null;
+  private timer: ReturnType<typeof setInterval> | null = null;
 
   constructor(storage?: StorageAdapter) {
     this.storage = storage ?? defaultStorage();
@@ -66,8 +69,7 @@ export class GameController {
   }
 
   quitToMenu(): void {
-    cancelAnimationFrame(this.raf);
-    this.raf = 0;
+    this.stop();
     this.state = null;
     this.refreshSaves();
     this.emit();
@@ -107,25 +109,54 @@ export class GameController {
     }, 3800);
   }
 
-  private start(): void {
+  private stop(): void {
     cancelAnimationFrame(this.raf);
-    this.last = performance.now();
-    const loop = (now: number) => {
-      const dt = now - this.last;
-      this.last = now;
-      if (this.state && !this.state.gameOver) {
-        const hours = this.clock.tick(dt, this.timeScale);
-        if (hours > 0) {
-          advanceHours(this.state, hours);
-          const m = monthIndex(this.state.hour);
-          if (m !== this.lastAutosaveMonth) { this.lastAutosaveMonth = m; void this.autosave(); }
-          if (this.state.gameOver) this.clock.speed = 0;
-          this.emit();
-        }
+    this.raf = 0;
+    if (this.timer) clearInterval(this.timer);
+    this.timer = null;
+  }
+
+  /**
+   * Un paso del reloj: convierte el tiempo real transcurrido en horas simuladas.
+   * Lo llaman requestAnimationFrame (fluido) y, como respaldo, un temporizador
+   * cada 250 ms: algunos visores de iPhone suspenden requestAnimationFrame y el
+   * juego parecería congelado. Ambos comparten la marca de tiempo, así que nunca
+   * se cuenta dos veces el mismo intervalo. Un error del motor detiene el reloj
+   * y se muestra en pantalla, en lugar de parar el bucle sin avisar.
+   */
+  tickNow = (): void => {
+    const now = performance.now();
+    const dt = now - this.last;
+    this.last = now;
+    if (!this.state || this.state.gameOver || this.fatal) return;
+    try {
+      const hours = this.clock.tick(dt, this.timeScale);
+      if (hours > 0) {
+        advanceHours(this.state, hours);
+        const m = monthIndex(this.state.hour);
+        if (m !== this.lastAutosaveMonth) { this.lastAutosaveMonth = m; void this.autosave(); }
+        if (this.state.gameOver) this.clock.speed = 0;
+        this.emit();
       }
+    } catch (e) {
+      this.clock.speed = 0;
+      this.fatal = (e as Error)?.message ?? String(e);
+      console.error('Error interno del simulador', e);
+      this.toast(`Error interno: ${this.fatal}. La partida se ha pausado.`, false);
+      this.emit();
+    }
+  };
+
+  private start(): void {
+    this.stop();
+    this.fatal = null;
+    this.last = performance.now();
+    const loop = () => {
+      this.tickNow();
       this.raf = requestAnimationFrame(loop);
     };
     this.raf = requestAnimationFrame(loop);
+    this.timer = setInterval(this.tickNow, 250);
   }
 
   async refreshSaves(): Promise<void> {

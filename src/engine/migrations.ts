@@ -33,6 +33,40 @@ const STEPS: Record<number, (s: AnyState) => void> = {
       u.recruitPending = 0;
     }
   },
+  /**
+   * v2 → v3 (MIL Fase 2): sin moral ni organización (F2-002 A: se eliminan los
+   * campos); equipo dañado vacío; combustible y munición llenos; contabilidad de
+   * reserva dañada y pérdidas; batallas en curso con su ficha de seguimiento
+   * (entrada de cada batallón = su situación actual) e informes vacíos.
+   * No se toca el equipo existente: los totales por modelo se conservan.
+   */
+  2: (raw) => {
+    const s = raw as unknown as GameState;
+    for (const c of Object.values(s.countries)) {
+      c.inventoryDamaged ??= {};
+      c.equipmentLost ??= {};
+    }
+    for (const u of Object.values(s.units as unknown as Record<string, Record<string, unknown>>)) {
+      delete u.org;
+      delete u.morale;
+      u.damaged ??= {};
+      u.fuel ??= 1;
+      u.ammo ??= 1;
+    }
+    for (const b of Object.values(s.battles) as (GameState['battles'][string])[]) {
+      b.id ??= `${b.regionId}@${b.startHour}`;
+      b.tally ??= {};
+      b.timeline ??= [];
+      if (!b.entry) {
+        b.entry = {};
+        for (const u of Object.values(s.units)) {
+          if (u.regionId !== b.regionId || !b.participants.includes(u.owner)) continue;
+          b.entry[u.id] = { owner: u.owner, men: u.men, vehicles: Object.values(u.equipment).reduce((x, y) => x + y, 0) };
+        }
+      }
+    }
+    s.battleReports ??= [];
+  },
 };
 
 export function migrateState(raw: AnyState): { state: GameState; from: number } {

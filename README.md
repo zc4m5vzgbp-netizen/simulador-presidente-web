@@ -12,14 +12,18 @@ Diseñada para jugar **en horizontal** en iPhone: barra superior con los indicad
 
 - **Tiempo**: pausa, ×1 (1 día = 5 minutos reales), ×2 y ×4. La partida empieza en pausa el 1 de enero de 2027 y se pausa sola al cerrar u ocultar la app.
 - **Mapa**: arrastra con un dedo para moverte y pellizca con dos para acercar o alejar (el zoom se centra entre tus dedos). Toca una región, un marcador o una ciudad para ver su información; un arrastre nunca selecciona. Ver *Interacción táctil (MOBILE-001)*.
-- **Mover tropas**: toca un marcador de tus batallones (número dorado), pulsa **Mover** en el panel derecho y luego toca la región de destino. Solo puedes entrar en territorio propio, aliado o de un país con el que estés en guerra.
-- **Guerra**: Diplomacia → país → *Declarar la guerra*. Las regiones sin defensores se ocupan tras 1 día (2 días las capitales). La ocupación transfiere el 50 % de su PIB al ocupante. La paz se negocia en Diplomacia: *paz blanca* (se devuelve todo) o *status quo* (cada uno se queda lo que ocupa).
+- **Mover tropas** (las marchas duran la cuarta parte que en versiones anteriores, MIL-MOV-001; el aviso indica la llegada en horas de juego y minutos reales): toca un marcador de tus batallones (número dorado), pulsa **Mover** en el panel derecho y luego toca la región de destino. Solo puedes entrar en territorio propio, aliado o de un país con el que estés en guerra.
+- **Guerra**: Diplomacia → país → *Declarar la guerra*. Las regiones sin defensores se ocupan tras 1 día (2 días las capitales). El territorio ocupado rinde al 100 % para quien lo controla; la propiedad legal solo cambia con la paz. También se puede atacar sin declarar la guerra (con confirmación y mayor coste diplomático). La paz se negocia en Diplomacia: *paz blanca* (se devuelve todo) o *status quo* (cada uno se queda lo que ocupa).
 - **Economía**: ajusta impuestos, gasto, inversión y presupuesto militar; el panel muestra la proyección antes de aplicar. Si te quedas sin reservas, el déficit se cubre con deuda.
 - **Derrota**: pierdes si tu país queda sin territorio o si la estabilidad llega a 3.
 
 ## Ejército (MIL · Fase 1)
 
-Batallones con plantilla universal fija (1.000 efectivos; máximo 20 tanques, 30 blindados, 8 artillerías, 40 drones y 20 transportes), tripulación automática (el equipo sin personal queda inactivo), inventario nacional por modelo, reposición automática pausable y reclutamiento voluntario progresivo sin entrenamiento. Ficha ilustrada, totales en multiselección e inventario por ramas en *Ejército*. **Los modelos, estadísticas, tripulaciones y cantidades son provisionales** (`src/data/military.ts`) y el equipo aún no influye en el combate (Fase 2). Documentación: `docs/mil/` (auditoría, matriz MIL-001–171, plan y `FASE1.md`).
+Batallones con plantilla universal fija (1.000 efectivos; máximo 20 tanques, 30 blindados, 8 artillerías, 40 drones y 20 transportes), tripulación automática (el equipo sin personal queda inactivo), inventario nacional por modelo, reposición automática pausable y reclutamiento voluntario progresivo sin entrenamiento. Ficha ilustrada, totales en multiselección e inventario por ramas en *Ejército*. **Los modelos, estadísticas, tripulaciones y cantidades son provisionales** (`src/data/military.ts`).
+
+## Combate terrestre (MIL · Fase 2)
+
+Combate automático por intervalos de una hora. La potencia depende de efectivos, equipo operativo y tripulado, estadísticas de los modelos, munición, combustible y mantenimiento (presupuesto); **sin** terreno, fortificaciones, bonificación defensiva, moral ni organización. Bajas humanas y vehículos dañados o destruidos por separado; reparación fuera de combate; retirada automática por pérdidas graves y manual; panel de batalla desde Atlas e informes en *Ejército*. Coeficientes provisionales. Documentación: `docs/mil/` (auditoría, matriz MIL-001–171, plan, `FASE1.md` y `FASE2.md`).
 
 ## Interacción táctil (MOBILE-001)
 
@@ -82,8 +86,8 @@ npm run serve        # http://localhost:4173
 ## Pruebas
 
 ```bash
-npm test             # 92 pruebas: motor (43, incluida la carga de una partida de la beta 1.0), cartografía (16), encuadre del mapa (4), atlas (7), escalas/simbología (7) y ejército (15)
-npm run build && npx playwright install chromium && npm run test:e2e   # 50 pruebas táctiles × 2 tamaños de iPhone en horizontal
+npm test             # 120 pruebas: motor (43, incluida la carga de una partida de la beta 1.0), cartografía (16), encuadre del mapa (4), atlas (7), escalas/simbología (7), ejército (15) y combate (28)
+npm run build && npx playwright install chromium && npm run test:e2e   # 61 pruebas táctiles × 2 tamaños de iPhone en horizontal, incluida la regresión integral (npm run test:regression)
 SHOTS=1 npx playwright test screenshots   # capturas en docs/map-001/
 ```
 

@@ -116,3 +116,76 @@ export const RECRUITMENT = {
   /** Máximo de batallones por orden de reclutamiento. */
   maxPerOrder: 5,
 };
+
+/**
+ * Combate terrestre (MIL Fase 2). TODOS LOS COEFICIENTES SON PROVISIONALES:
+ * calibran la duración y la letalidad de las batallas, no proceden de datos reales.
+ * Sin terreno, sin fortificaciones y sin bonificación por defender (F2-001 A);
+ * sin moral ni organización (F2-002 A).
+ */
+export const COMBAT = {
+  /** Potencia por soldado de infantería. */
+  infantryPower: 0.01,
+  /** Potencia por vehículo operativo y tripulado = potencia de fuego del modelo × peso de su categoría. */
+  categoryWeight: { tank: 0.06, armored: 0.03, artillery: 0.08, drone: 0.015, transport: 0 } as Record<EquipCategory, number>,
+  /** Tecnología: 1,0 para todos hasta la Fase 9 (investigación). */
+  technology: 1,
+  /** Mantenimiento: potencia × (mín + (1 − mín) × abastecimiento presupuestario, máx. 1). */
+  maintenanceMin: 0.6,
+  /** Daño por punto de potencia y hora. */
+  damagePerPower: 0.45,
+  /** Variación aleatoria del daño (determinista con la semilla): ±15 %. */
+  damageSpread: 0.15,
+  /** Protección máxima de la infantería gracias a los blindados (reduce bajas humanas). */
+  maxShield: 0.3,
+  /** Divisor del blindaje: Σ(vehículos operativos × protección) / shieldDivisor. */
+  shieldDivisor: 2000,
+  /** Impactos esperados contra vehículos por punto de daño. */
+  vehicleHitsPerDamage: 0.03,
+  /** Probabilidad base de que un impacto destruya (si no, daña); se reduce con la protección del modelo. */
+  destroyChance: 0.4,
+  protectionDivisor: 15,
+  /** Retirada automática por pérdidas graves (respecto a la entrada en la batalla). */
+  retreatMenLoss: 0.4,
+  retreatVehicleLoss: 0.6,
+  retreatMinVehicles: 10,
+  /** Por debajo de estos efectivos el batallón queda destruido. */
+  destroyedBelowMen: 150,
+};
+
+/** Suministros simplificados por batallón: carga 0–1 de combustible y munición (MIL-035). PROVISIONAL. */
+export const SUPPLY = {
+  /** 72 horas de combate continuo con la carga completa. */
+  ammoPerCombatHour: 1 / 72,
+  fuelPerCombatHour: 1 / 96,
+  fuelPerMarchHour: 1 / 144,
+  /** Por debajo de este nivel empiezan las penalizaciones. */
+  shortage: 0.2,
+  /** Potencia mínima sin munición (fracción) y de los vehículos sin combustible. */
+  ammoFloor: 0.25,
+  fuelFloor: 0.3,
+  /** Velocidad mínima de marcha sin combustible (a pie). */
+  fuelSpeedFloor: 0.5,
+  /**
+   * Reabastecimiento diario fuera de combate (fracción de carga), × abastecimiento
+   * presupuestario. SIMPLIFICACIÓN PROVISIONAL: igual en cualquier territorio
+   * porque la Fase 2 no modela líneas de suministro (sin logística individual,
+   * MIL-035 simplificado). F2-001 A no prohíbe diferencias logísticas; si se
+   * aprueba una regla de logística por territorio, se sustituye aquí.
+   */
+  dailyResupply: 0.5,
+};
+
+/** Reparación diaria de vehículos dañados fuera de combate (MIL-137 B). PROVISIONAL. */
+export const REPAIR = {
+  /** Fracción de los dañados que se reparan al día con mantenimiento completo. */
+  dailyRate: 0.25,
+  /** Sin reparaciones si el abastecimiento presupuestario baja de aquí. */
+  minSupplyRatio: 0.3,
+};
+
+/** Ataque directo sin declaración (MIL-082 B): consecuencias diplomáticas adicionales. PROVISIONAL. */
+export const DIRECT_ATTACK = {
+  thirdPartyRelation: -10,
+  attackerStability: -4,
+};

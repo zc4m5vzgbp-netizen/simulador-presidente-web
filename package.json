@@ -6,9 +6,10 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "build:artifact": "node scripts/build.mjs artifact",
+    "test:regression": "playwright test regression",
     "typecheck": "tsc --noEmit",
     "typecheck:engine": "tsc --noEmit -p tsconfig.engine.json",
-    "test": "node --import tsx --test tests/engine.test.ts tests/geo.test.ts tests/map-bounds.test.ts tests/atlas.test.ts tests/scale.test.ts tests/military.test.ts",
+    "test": "node --import tsx --test tests/engine.test.ts tests/geo.test.ts tests/map-bounds.test.ts tests/atlas.test.ts tests/scale.test.ts tests/military.test.ts tests/combat.test.ts tests/movement.test.ts",
     "test:e2e": "playwright test",
     "gen:map": "tsx scripts/generate-map.ts",
     "serve": "python3 -m http.server 4173 --directory dist",

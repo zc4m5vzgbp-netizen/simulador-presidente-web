@@ -2,7 +2,7 @@ import type { CountryId } from '../data/regionDefs';
 export type { CountryId };
 
 /** Versión del formato de guardado. Incrementar al cambiar la forma del estado. */
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export interface Policy {
   /** Impuestos: % del PIB recaudado. */
@@ -45,7 +45,10 @@ export interface CountryState {
   stability: number;
   /** Estabilidad de referencia a la que tiende el país en condiciones normales. */
   baseStability: number;
-  /** Calidad de las tropas (multiplicador de combate). */
+  /**
+   * Calidad militar de partida. Desde la Fase 2 NO interviene en el combate; solo
+   * se usó para diferenciar las estadísticas provisionales de los modelos.
+   */
   armyQuality: number;
   /** Coste anual de mantenimiento de un batallón completo (miles de millones). */
   unitCost: number;
@@ -63,6 +66,10 @@ export interface CountryState {
   inventory: Record<string, number>;
   /** Reposición automática de efectivos y equipo (pausable, MIL-019/038). */
   autoReplenish: boolean;
+  /** Vehículos dañados en la reserva nacional (vuelven a la reserva al repararse). */
+  inventoryDamaged: Record<string, number>;
+  /** Vehículos perdidos para siempre: destruidos o abandonados (contabilidad, MIL-037). */
+  equipmentLost: Record<string, number>;
 }
 
 export interface RegionState {
@@ -89,10 +96,6 @@ export interface Unit {
   name: string;
   /** Efectivos. Máximo UNIT_MAX_MEN. */
   men: number;
-  /** Organización 0-100. */
-  org: number;
-  /** Moral 0-100. */
-  morale: number;
   regionId: string;
   /** Destino final de la orden actual. */
   destination: string | null;
@@ -101,8 +104,13 @@ export interface Unit {
   /** Progreso 0-1 hacia path[0]. */
   progress: number;
   status: UnitStatus;
-  /** Equipo asignado: modelo → cantidad (plantilla universal, MIL-001C/022–026). */
+  /** Equipo OPERATIVO asignado: modelo → cantidad (plantilla universal, MIL-001C/022–026). */
   equipment: Record<string, number>;
+  /** Equipo dañado del batallón (ocupa su hueco en la plantilla, no combate): modelo → cantidad. */
+  damaged: Record<string, number>;
+  /** Combustible y munición: carga de 0 a 1 (MIL-035, simplificado). */
+  fuel: number;
+  ammo: number;
   /** Voluntarios ya reclutados (y pagados) que aún no se han incorporado (MIL-012). */
   recruitPending: number;
 }
@@ -118,12 +126,39 @@ export interface War {
   casualties: Partial<Record<CountryId, number>>;
 }
 
+/** Contadores por categoría de equipo (tank, armored, …). */
+export type CategoryCounts = Partial<Record<string, number>>;
+
+export interface BattleCountryTally {
+  /** Vehículos dañados y destruidos por categoría. */
+  damaged: CategoryCounts;
+  destroyed: CategoryCounts;
+  /** Suministros consumidos, en cargas completas de batallón. */
+  fuel: number;
+  ammo: number;
+}
+
 export interface Battle {
+  /** Identificador estable: región@hora de inicio. */
+  id: string;
   regionId: string;
   startHour: number;
   lastHour: number;
+  /** Bajas humanas por país. */
   losses: Partial<Record<CountryId, number>>;
   participants: CountryId[];
+  /** Situación de cada batallón al entrar en combate (para pérdidas graves e informes). */
+  entry: Record<string, { owner: CountryId; men: number; vehicles: number }>;
+  /** Pérdidas materiales y consumos por país (MIL-037, 139). */
+  tally: Partial<Record<CountryId, BattleCountryTally>>;
+  /** Evolución: efectivos de cada país presentes, muestreados cada hora (máx. 240 puntos). */
+  timeline: { hour: number; men: Partial<Record<CountryId, number>> }[];
+}
+
+/** Informe de una batalla terminada (MIL-139/141). */
+export interface BattleReport extends Battle {
+  endHour: number;
+  winners: CountryId[];
 }
 
 export interface TradeAgreement {
@@ -187,6 +222,8 @@ export interface GameState {
   /** Treguas tras la paz: key "a:b" ordenado → hora de expiración. */
   truces: Record<string, number>;
   battles: Record<string, Battle>;
+  /** Últimos informes de batallas terminadas (máx. 20). */
+  battleReports: BattleReport[];
   proposals: Proposal[];
   ai: Record<CountryId, AIMemory>;
   log: LogEntry[];

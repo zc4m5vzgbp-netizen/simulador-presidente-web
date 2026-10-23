@@ -28,6 +28,7 @@ export function GamePanel({ state }: { state: GameState }) {
   const saves = controller.saves;
   return (
     <div className="panel-body">
+      {__PREVIEW__ && <VerificationTool />}
       <Section title="Guardar partida">
         <div className="slot-row">
           {SLOTS.map((s) => (
@@ -69,5 +70,24 @@ export function GamePanel({ state }: { state: GameState }) {
         <p className="muted small-text">Datos iniciales simplificados y estimados para el juego; no son estadísticas oficiales. Fronteras: Natural Earth (dominio público).</p>
       </Section>
     </div>
+  );
+}
+
+/**
+ * Solo en la vista previa privada: acelera el reloj para comprobar en minutos lo
+ * que en partida dura horas reales. NO es una velocidad del juego (las aprobadas
+ * siguen siendo pausa, ×1, ×2 y ×4) ni existe en la compilación publicable.
+ */
+function VerificationTool() {
+  const [on, setOn] = useState(controller.timeScale > 1);
+  const toggle = () => { controller.timeScale = on ? 1 : 30; setOn(!on); controller.emit(); };
+  return (
+    <Section title="Herramienta de verificación (vista previa)">
+      <label className="switch">
+        <input type="checkbox" id="verify-fast" checked={on} onChange={toggle} />
+        <span>{on ? 'Reloj acelerado ×30 activo' : 'Acelerar el reloj ×30 para pruebas'}</span>
+      </label>
+      <p className="notice warn small-text">Solo existe en esta vista previa privada para comprobar marchas y batallas en pocos minutos. No es una velocidad del juego: las velocidades aprobadas siguen siendo pausa, ×1, ×2 y ×4.</p>
+    </Section>
   );
 }

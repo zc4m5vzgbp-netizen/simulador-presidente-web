@@ -1,6 +1,6 @@
 /** MAP-001: capas cartográficas, selección de ciudades y pasos, y separación del motor. */
 import { test, expect, type Page } from '@playwright/test';
-import { game, startGame } from './helpers';
+import { game, startGame, waitMapStable } from './helpers';
 
 /** Fija la vista del mapa centrada en (x, y) con ancho w (unidades de mapa) y espera a que se estabilice. */
 async function focus(page: Page, x: number, y: number, w: number) {
@@ -14,6 +14,7 @@ async function focus(page: Page, x: number, y: number, w: number) {
 
 /** Toca el centro exacto del icono (no el de su área táctil). */
 async function tapIcon(page: Page, selector: string) {
+  await waitMapStable(page);
   const p = await page.evaluate((sel) => {
     const el = document.querySelector(sel) as SVGGraphicsElement;
     const r = el.querySelector('.crossing-shape, .city-shape')!.getBoundingClientRect();
@@ -79,9 +80,11 @@ test('Bolivia: Sucre es la capital y La Paz la sede de gobierno', async ({ page 
   await startGame(page, 'BOL');
   await focus(page, 292, 624, 200);
   await tapIcon(page, '[data-city="bo-la-paz"]');
+  await expect(page.locator('.city-card')).toContainText('La Paz');
   await expect(page.locator('.city-card').getByTestId('city-kind')).toHaveText('Sede de gobierno');
   await focus(page, 352, 679, 200);
   await tapIcon(page, '[data-city="bo-sucre"]');
+  await expect(page.locator('.city-card')).toContainText('Sucre');
   await expect(page.locator('.city-card').getByTestId('city-kind')).toHaveText('Capital nacional');
   await expect(page.locator('.city-card')).toContainText('Capital constitucional');
 });

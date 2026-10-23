@@ -6,7 +6,7 @@
 import type { CountryId, GameState, PeaceTerms, Policy, ProposalKind } from './types';
 import { fail, type ActionResult } from './core';
 import { payDebt, setPolicy } from './economy';
-import { disband, moveUnit, recruit, setAutoReplenish } from './military';
+import { directAttack, disband, moveUnit, orderRetreat, recruit, setAutoReplenish } from './military';
 import { cancelTrade, improveRelations, propose, respondProposal, sendAid, worsenRelations } from './diplomacy';
 import { declareWar } from './war';
 
@@ -17,6 +17,8 @@ export type Action =
   | { type: 'setAutoReplenish'; enabled: boolean }
   | { type: 'disband'; unitId: string }
   | { type: 'move'; unitId: string; target: string }
+  | { type: 'retreat'; unitId: string }
+  | { type: 'directAttack'; unitIds: string[]; target: string }
   | { type: 'improveRelations'; target: CountryId }
   | { type: 'worsenRelations'; target: CountryId }
   | { type: 'sendAid'; target: CountryId; amount: number }
@@ -35,6 +37,8 @@ export function perform(state: GameState, actor: CountryId, action: Action): Act
     case 'setAutoReplenish': return setAutoReplenish(state, actor, action.enabled);
     case 'disband': return disband(state, actor, action.unitId);
     case 'move': return moveUnit(state, actor, action.unitId, action.target);
+    case 'retreat': return orderRetreat(state, actor, action.unitId);
+    case 'directAttack': return directAttack(state, actor, action.unitIds, action.target);
     case 'improveRelations': return improveRelations(state, actor, action.target);
     case 'worsenRelations': return worsenRelations(state, actor, action.target);
     case 'sendAid': return sendAid(state, actor, action.target, action.amount);

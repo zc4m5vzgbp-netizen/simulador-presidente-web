@@ -40,6 +40,7 @@ const PATHS: Record<string, ReactNode> = {
   airport: <path d="M12 3.5c.9 0 1.4.8 1.4 1.8v4.4l6.6 3.8v2l-6.6-1.9v3.6l2 1.5v1.6L12 19.4l-3.4.9v-1.6l2-1.5v-3.6L4 15.5v-2l6.6-3.8V5.3c0-1 .5-1.8 1.4-1.8z" />,
   port: <><circle cx="12" cy="5" r="1.8" /><path d="M12 6.8v13.7M8 10h8M4.5 13.5c.6 4 3.6 7 7.5 7s6.9-3 7.5-7" /></>,
   state: <><path d="M4 6.5 9.5 4l5 2.5L20 5l-1 7 1.5 6.5-6 1.5-5.5-2-5 1.5L5.5 12z" strokeDasharray="2.2 1.8" /></>,
+  swords: <><path d="M4 4l10.5 10.5M20 4 9.5 14.5" /><path d="m12.5 16.5 4 4M11.5 16.5l-4 4M16.5 12.5l4 4M7.5 12.5l-4 4" /></>,
   info: <><circle cx="12" cy="12" r="8.5" /><path d="M12 11v5.5M12 7.6v.2" /></>,
   chevronUp: <path d="m5 15 7-7 7 7" />,
   chevronDown: <path d="m5 9 7 7 7-7" />,

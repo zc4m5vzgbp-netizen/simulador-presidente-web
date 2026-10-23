@@ -22,6 +22,7 @@ import type { SectionId } from './NavRail';
 import { Icon, type IconName } from '../icons';
 import { CITY_KIND_LABEL, cityById, crossingById, formatLonLat } from '../../geo';
 import { StateCard, FacilityCard } from '../panels/AtlasCards';
+import { BattleCard } from '../panels/BattleCard';
 
 interface Props {
   state: GameState;
@@ -237,7 +238,12 @@ function RegionCard({ state, regionId, setSelection, startOrder }: Omit<Props, '
             </span>
           </Row>
           {r.occupationHours > 0 && r.occupier && <p className="notice warn">{countryName(r.occupier)} está tomando el control: {Math.round((r.occupationHours / need) * 100)} %</p>}
-          {battle && <p className="notice bad">Batalla en curso. Bajas: {Object.entries(battle.losses).map(([c, n]) => `${countryName(c as CountryId)} ${int(n ?? 0)}`).join(' · ')}</p>}
+          {battle && (
+            <div className="notice bad battle-notice">
+              <span>Batalla en curso. Bajas: {Object.entries(battle.losses).map(([c, n]) => `${countryName(c as CountryId)} ${int(n ?? 0)}`).join(' · ')}</span>
+              <button type="button" className="small" data-action="open-battle" onClick={() => setSelection({ kind: 'battle', battleId: battle.id })}>Ver batalla</button>
+            </div>
+          )}
           <div className="card-actions">
             {orderable.length > 0 && <button type="button" className="primary small" onClick={() => startOrder(regionId, orderable.map((u) => u.id))}><Icon name="move" size={15} /> Mover tropas ({orderable.length})</button>}
             {units.length > 0 && <button type="button" className="small" data-action="troops" onClick={() => setShowTroops(!showTroops)}>{showTroops ? 'Ocultar tropas' : 'Ver tropas'}</button>}
@@ -301,6 +307,12 @@ function UnitsCard({ state, selection, setSelection, startOrder }: Omit<Props, '
             <button type="button" disabled={!moving.length} onClick={() => controller.actBatch(moving.map((u) => ({ type: 'move' as const, unitId: u.id, target: u.regionId })), (n) => `${n} batallón(es) detenido(s).`)}>
               <Icon name="stop" size={14} /> Detener
             </button>
+            {selected.some((u) => u.status === 'combat') && (
+              <button type="button" className="danger" data-action="retreat"
+                onClick={() => controller.actBatch(selected.filter((u) => u.status === 'combat').map((u) => ({ type: 'retreat' as const, unitId: u.id })), (n) => `${n} batallón(es) en retirada.`)}>
+                Retirar
+              </button>
+            )}
             {selected.length === 1 && (
               <ConfirmButton className="ghost" label="Desmovilizar" confirmLabel="Confirmar" onConfirm={() => { controller.act({ type: 'disband', unitId: selected[0].id }); setSelection({ kind: 'region', regionId: selection.regionId }); }} />
             )}
@@ -423,13 +435,14 @@ export function ContextPanel(props: Props) {
   const country = selection.kind === 'country' ? selection.country : state.player;
   const selKey = selection.kind === 'region' ? `r:${selection.regionId}` : selection.kind === 'units' ? `u:${selection.unitIds.join()}`
     : selection.kind === 'city' ? `c:${selection.cityId}` : selection.kind === 'crossing' ? `x:${selection.crossingId}`
-    : selection.kind === 'state' ? `s:${selection.stateId}` : selection.kind === 'facility' ? `f:${selection.facilityId}` : selection.kind;
+    : selection.kind === 'state' ? `s:${selection.stateId}` : selection.kind === 'facility' ? `f:${selection.facilityId}`
+    : selection.kind === 'battle' ? `b:${selection.battleId}` : selection.kind;
   const ref = useRef<HTMLDivElement>(null);
   // Al seleccionar región o batallones, llevar el INICIO de su tarjeta a la vista (pantallas bajas):
   // las fichas largas (batallones) se leen desde arriba.
   useEffect(() => {
     if (selection.kind === 'none' || selection.kind === 'country') return;
-    const card = ref.current?.querySelector('.region-card, .units-card, .geo-card');
+    const card = ref.current?.querySelector('.region-card, .units-card, .geo-card, .battle-card');
     card?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }, [selKey]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
@@ -442,6 +455,7 @@ export function ContextPanel(props: Props) {
       {selection.kind === 'state' && <StateCard stateId={selection.stateId} regionId={selection.regionId} setSelection={props.setSelection} />}
       {selection.kind === 'state' && <RegionCard {...props} regionId={selection.regionId} />}
       {selection.kind === 'facility' && <FacilityCard facilityId={selection.facilityId} setSelection={props.setSelection} />}
+      {selection.kind === 'battle' && <BattleCard state={state} battleId={selection.battleId} setSelection={props.setSelection} />}
     </div>
   );
 }

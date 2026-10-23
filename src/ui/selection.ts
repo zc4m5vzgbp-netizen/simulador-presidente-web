@@ -11,7 +11,9 @@ export type Selection =
   /** Estado/provincia real (Atlas), con la región del juego donde se tocó. */
   | { kind: 'state'; stateId: string; regionId: string }
   /** Instalación cartográfica (aeropuerto, puerto; preparada para bases). */
-  | { kind: 'facility'; facilityId: string };
+  | { kind: 'facility'; facilityId: string }
+  /** Batalla en curso o informe de una batalla terminada (MIL Fase 2). */
+  | { kind: 'battle'; battleId: string };
 
 export const NO_SELECTION: Selection = { kind: 'none' };
 

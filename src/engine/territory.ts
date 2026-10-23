@@ -4,9 +4,10 @@ import { REGIONS } from './world';
 import { log } from './core';
 import { countryName } from './world';
 
-/** Eficiencia económica de una región ocupada para el ocupante. */
-export const OCCUPIED_EFFICIENCY = 0.5;
-
+/**
+ * MIL-085 A: un territorio ocupado funciona económicamente como propio para quien
+ * lo controla, sin penalización automática (antes rendía el 50 %).
+ */
 export function regionsControlledBy(state: GameState, c: CountryId): string[] {
   return Object.values(state.regions).filter((r) => r.controller === c).map((r) => r.id);
 }
@@ -20,9 +21,8 @@ export function recomputeAggregates(state: GameState): void {
   for (const c of Object.values(state.countries)) { c.gdp = 0; c.population = 0; }
   for (const r of Object.values(state.regions)) {
     const c = state.countries[r.controller];
-    const eff = r.controller === r.owner ? 1 : OCCUPIED_EFFICIENCY;
-    c.gdp += r.gdp * eff;
-    c.population += r.population * eff;
+    c.gdp += r.gdp;
+    c.population += r.population;
   }
 }
 

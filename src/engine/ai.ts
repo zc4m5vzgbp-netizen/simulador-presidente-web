@@ -122,7 +122,8 @@ function manageRecruitment(state: GameState, c: CountryId): void {
 // ---------------- Ejército ----------------
 
 function available(state: GameState, c: CountryId): Unit[] {
-  return unitsOf(state, c).filter((u) => u.status === 'idle' && u.path.length === 0 && u.org > 35);
+  // Disponibles: en posición, con efectivos y munición suficientes (sin organización ni moral, F2-002 A).
+  return unitsOf(state, c).filter((u) => u.status === 'idle' && u.path.length === 0 && u.men >= 400 && u.ammo >= 0.3);
 }
 
 function enemyPowerIn(state: GameState, c: CountryId, regionId: string): number {

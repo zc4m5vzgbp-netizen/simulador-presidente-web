@@ -1,9 +1,11 @@
 /** Ejército: batallones, reclutamiento, mantenimiento, rutas y movimiento. */
 import type { CountryId, GameState, Unit } from './types';
-import { clamp, fail, log, newId, ok, type ActionResult } from './core';
+import { fail, log, newId, ok, type ActionResult } from './core';
 import { REGIONS, distance, countryName } from './world';
-import { atWar, sameSide } from './war';
-import { BATTALION_TEMPLATE, RECRUITMENT, fillFromInventory, returnToInventory } from './equipment';
+import { atWar, declareWar, inTruce, sameSide } from './war';
+import { BATTALION_TEMPLATE, RECRUITMENT, fillFromInventory, loseAllEquipment, returnToInventory } from './equipment';
+import { combatPower, marchSpeedFactor } from './combat';
+import { SUPPLY } from '../data/military';
 
 /** Máximo de efectivos por batallón (plantilla universal). */
 export const UNIT_MAX_MEN = BATTALION_TEMPLATE.maxMen;
@@ -19,10 +21,9 @@ export function unitsIn(state: GameState, regionId: string): Unit[] {
   return Object.values(state.units).filter((u) => u.regionId === regionId);
 }
 
-/** Fuerza de combate de un batallón. */
+/** Potencia de combate de un batallón (ver `combat.ts`: efectivos, equipo, suministros, mantenimiento, tecnología). */
 export function unitPower(state: GameState, u: Unit): number {
-  const q = state.countries[u.owner].armyQuality;
-  return (u.men / UNIT_MAX_MEN) * 10 * q * (0.3 + 0.7 * u.org / 100) * (0.6 + 0.4 * u.morale / 100);
+  return combatPower(state, u);
 }
 
 export function countryPower(state: GameState, c: CountryId): number {
@@ -39,30 +40,33 @@ export function recruitCost(state: GameState, c: CountryId): number {
   return state.countries[c].unitCost * 0.5;
 }
 
-/** ¿Puede un batallón de `owner` entrar en la región? */
-export function canEnter(state: GameState, owner: CountryId, regionId: string): boolean {
+/**
+ * ¿Puede un batallón de `owner` entrar en la región? `assumeWarWith` permite
+ * calcular la ruta de un ataque directo antes de que empiece la guerra.
+ */
+export function canEnter(state: GameState, owner: CountryId, regionId: string, assumeWarWith?: CountryId): boolean {
   const ctrl = state.regions[regionId].controller;
-  return ctrl === owner || atWar(state, owner, ctrl) || sameSide(state, owner, ctrl);
+  return ctrl === owner || ctrl === assumeWarWith || atWar(state, owner, ctrl) || sameSide(state, owner, ctrl);
 }
 
 /** Crea un batallón operativo (sin entrenamiento obligatorio, MIL-018 A). El equipo lo asigna quien lo crea. */
 export function createUnit(state: GameState, owner: CountryId, regionId: string, men: number = UNIT_MAX_MEN): Unit {
   const id = newId(state, 'u');
-  const c = state.countries[owner];
   const n = unitsOf(state, owner).length + 1;
   const unit: Unit = {
     id,
     owner,
     name: `${n}.º Batallón`,
     men,
-    org: 100,
-    morale: clamp(50 + c.stability / 2, 0, 100),
     regionId,
     destination: null,
     path: [],
     progress: 0,
     status: 'idle',
     equipment: {},
+    damaged: {},
+    fuel: 1,
+    ammo: 1,
     recruitPending: 0,
   };
   // Evitar nombres repetidos tras bajas
@@ -105,6 +109,7 @@ export function disband(state: GameState, c: CountryId, unitId: string): ActionR
   // El equipo vuelve a las reservas solo si el batallón está en territorio que controla su país.
   const home = state.regions[u.regionId].controller === c;
   if (home) returnToInventory(state, u);
+  else loseAllEquipment(state, u);
   delete state.units[unitId];
   log(state, 'military', `${countryName(c)} desmoviliza el ${u.name}.`, [c]);
   return ok(`${u.name} desmovilizado.${home ? ' Su equipo vuelve a las reservas.' : ' Su equipo se pierde fuera del territorio propio.'}`);
@@ -122,9 +127,9 @@ function travelHours(state: GameState, owner: CountryId, from: string, to: strin
 }
 
 /** Ruta más rápida (Dijkstra) por regiones transitables. Devuelve la lista sin el origen. */
-export function findPath(state: GameState, owner: CountryId, from: string, to: string): string[] | null {
+export function findPath(state: GameState, owner: CountryId, from: string, to: string, assumeWarWith?: CountryId): string[] | null {
   if (from === to) return [];
-  if (!canEnter(state, owner, to)) return null;
+  if (!canEnter(state, owner, to, assumeWarWith)) return null;
   const dist: Record<string, number> = { [from]: 0 };
   const prev: Record<string, string> = {};
   const open = new Set([from]);
@@ -137,7 +142,7 @@ export function findPath(state: GameState, owner: CountryId, from: string, to: s
     done.add(cur);
     if (cur === to) break;
     for (const n of REGIONS[cur].neighbors) {
-      if (done.has(n) || !canEnter(state, owner, n)) continue;
+      if (done.has(n) || !canEnter(state, owner, n, assumeWarWith)) continue;
       const d = best + travelHours(state, owner, cur, n);
       if (d < (dist[n] ?? Infinity)) { dist[n] = d; prev[n] = cur; open.add(n); }
     }
@@ -171,25 +176,75 @@ export function moveUnit(state: GameState, c: CountryId, unitId: string, target:
   return ok(`${u.name} marcha hacia ${REGIONS[target].name} (${path.length} etapa${path.length > 1 ? 's' : ''}).`);
 }
 
-/** Retirada a la región amiga vecina más cercana; si no hay, el batallón se rinde. */
-export function retreat(state: GameState, u: Unit): void {
+/** Región amiga vecina más cercana sin enemigos, o null si el batallón está rodeado. */
+function retreatTarget(state: GameState, u: Unit): string | null {
   const options = REGIONS[u.regionId].neighbors.filter((n) => {
     const ctrl = state.regions[n].controller;
     if (!(ctrl === u.owner || sameSide(state, u.owner, ctrl))) return false;
     return !unitsIn(state, n).some((o) => atWar(state, o.owner, u.owner));
   });
-  if (!options.length) {
+  if (!options.length) return null;
+  options.sort((a, b) => distance(u.regionId, a) - distance(u.regionId, b));
+  return options[0];
+}
+
+function startRetreat(state: GameState, u: Unit, to: string, why: string): void {
+  u.path = [to];
+  u.destination = to;
+  u.progress = 0;
+  u.status = 'retreating';
+  log(state, 'military', `El ${u.name} de ${countryName(u.owner)} se retira hacia ${REGIONS[to].name} (${why}).`, [u.owner]);
+}
+
+/**
+ * Retirada AUTOMÁTICA por pérdidas graves (MIL-041 B): hacia la región amiga
+ * vecina más cercana; si está rodeado, se rinde y pierde su equipo.
+ */
+export function retreat(state: GameState, u: Unit): void {
+  const to = retreatTarget(state, u);
+  if (!to) {
     log(state, 'military', `El ${u.name} de ${countryName(u.owner)} queda rodeado y se rinde en ${REGIONS[u.regionId].name}.`, [u.owner]);
     state.countries[u.owner].casualties += u.men;
+    loseAllEquipment(state, u);
     delete state.units[u.id];
     return;
   }
-  options.sort((a, b) => distance(u.regionId, a) - distance(u.regionId, b));
-  u.path = [options[0]];
-  u.destination = options[0];
-  u.progress = 0;
-  u.status = 'retreating';
-  log(state, 'military', `El ${u.name} de ${countryName(u.owner)} se retira hacia ${REGIONS[options[0]].name}.`, [u.owner]);
+  startRetreat(state, u, to, 'pérdidas graves');
+}
+
+/** Retirada MANUAL ordenada por el jugador o la IA (MIL-041 B). No rinde al batallón si está rodeado. */
+export function orderRetreat(state: GameState, c: CountryId, unitId: string): ActionResult {
+  const u = state.units[unitId];
+  if (!u || u.owner !== c) return fail('Batallón no válido.');
+  if (u.status === 'retreating') return fail(`${u.name} ya está en retirada.`);
+  const enemiesHere = unitsIn(state, u.regionId).some((o) => o.status !== 'retreating' && atWar(state, o.owner, c));
+  if (u.status !== 'combat' && !enemiesHere) return fail(`${u.name} no está en combate.`);
+  const to = retreatTarget(state, u);
+  if (!to) return fail(`${u.name} está rodeado: no hay ruta de retirada.`);
+  startRetreat(state, u, to, 'orden de retirada');
+  return ok(`${u.name} se retira hacia ${REGIONS[to].name}.`);
+}
+
+/**
+ * Ataque directo sin declaración previa (MIL-082 B): inicia la guerra contra el
+ * controlador de la región destino, con consecuencias diplomáticas mayores, y
+ * pone en marcha los batallones. Mismas reglas para el jugador y la IA.
+ */
+export function directAttack(state: GameState, c: CountryId, unitIds: string[], target: string): ActionResult {
+  const region = state.regions[target];
+  if (!region) return fail('Región desconocida.');
+  const enemy = region.controller;
+  if (enemy === c) return fail('Esa región ya es tuya.');
+  if (atWar(state, c, enemy)) return fail(`Ya estás en guerra con ${countryName(enemy)}: usa una orden de marcha.`);
+  if (sameSide(state, c, enemy)) return fail(`${countryName(enemy)} es tu aliado en una guerra en curso.`);
+  if (inTruce(state, c, enemy)) return fail('Hay una tregua vigente tras el último tratado de paz.');
+  const units = unitIds.map((id) => state.units[id]).filter((u): u is Unit => !!u && u.owner === c && u.status !== 'retreating');
+  const routes = units.map((u) => ({ u, path: findPath(state, c, u.regionId, target, enemy) })).filter((x) => x.path && x.path.length);
+  if (!routes.length) return fail(`Ningún batallón seleccionado puede llegar a ${REGIONS[target].name}.`);
+  const war = declareWar(state, c, enemy, { surprise: true });
+  if (!war.ok) return war;
+  for (const { u } of routes) moveUnit(state, c, u.id, target);
+  return ok(`Ataque directo contra ${countryName(enemy)}: ${routes.length} batallón(es) hacia ${REGIONS[target].name}. Empieza la guerra.`);
 }
 
 /** Avance horario del movimiento. */
@@ -204,8 +259,9 @@ export function hourlyMovement(state: GameState): void {
       continue;
     }
     const hours = travelHours(state, u.owner, u.regionId, next);
-    const orgFactor = u.status === 'retreating' ? 1 : 0.6 + 0.4 * (u.org / 100);
-    u.progress += orgFactor / hours;
+    // Velocidad: reglas de desplazamiento (distancia, territorio hostil) y combustible; sin organización ni moral.
+    u.progress += marchSpeedFactor(u) / hours;
+    u.fuel = Math.max(0, u.fuel - SUPPLY.fuelPerMarchHour);
     if (u.progress >= 1) {
       u.regionId = next;
       u.path.shift();
@@ -223,18 +279,11 @@ export function hourlyMovement(state: GameState): void {
   }
 }
 
-/** Recuperación diaria: organización, moral y desgaste por falta de abastecimiento. */
+/** Desgaste diario por falta de abastecimiento presupuestario (MIL-138 B). Sin moral ni organización. */
 export function dailyMilitary(state: GameState): void {
   for (const u of Object.values(state.units)) {
     const c = state.countries[u.owner];
     const supply = Math.min(c.supplyRatio, 1.2);
-    if (u.status === 'idle' || u.status === 'moving') {
-      const cap = 100 * clamp(supply, 0.3, 1);
-      if (u.org < cap) u.org = Math.min(cap, u.org + 5 * supply);
-      else u.org = Math.max(cap, u.org - 2);
-    }
-    const moraleTarget = clamp(40 + c.stability / 2 + (supply - 1) * 20, 10, 100);
-    u.morale += (moraleTarget - u.morale) * 0.1;
     if (supply < 0.6) {
       const loss = Math.round(u.men * 0.003 * (0.6 - supply) / 0.6 * 3);
       u.men -= loss;
@@ -242,6 +291,7 @@ export function dailyMilitary(state: GameState): void {
       if (u.men < 150) {
         log(state, 'military', `El ${u.name} de ${countryName(u.owner)} se disuelve por falta de abastecimiento.`, [u.owner]);
         if (state.regions[u.regionId].controller === u.owner) returnToInventory(state, u);
+        else loseAllEquipment(state, u);
         delete state.units[u.id];
       }
     }
@@ -280,10 +330,10 @@ export function dailyReplenishment(state: GameState): void {
 /** Horas que faltan para que el batallón llegue a su destino al ritmo actual (MIL-033). */
 export function etaHours(state: GameState, u: Unit): number {
   if (!u.path.length) return 0;
-  const orgFactor = u.status === 'retreating' ? 1 : 0.6 + 0.4 * (u.org / 100);
+  const speed = marchSpeedFactor(u);
   let from = u.regionId, total = 0;
   u.path.forEach((to, i) => {
-    const h = travelHours(state, u.owner, from, to) / orgFactor;
+    const h = travelHours(state, u.owner, from, to) / speed;
     total += i === 0 ? h * (1 - u.progress) : h;
     from = to;
   });

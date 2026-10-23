@@ -2,10 +2,11 @@
  * Pantalla de juego horizontal: barra superior + navegación lateral (izquierda)
  * + mapa estratégico (centro) + panel contextual o de sección (derecha).
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { CountryId, GameState } from '../engine/types';
 import { formatDate } from '../engine/core';
-import { REGIONS } from '../engine/world';
+import { REGIONS, countryName } from '../engine/world';
+import { atWar, sameSide } from '../engine/war';
 import { controller } from './controller';
 import { MapView } from './map/MapView';
 import { defaultVisibility, type LayerVisibility } from './map/layers';
@@ -25,6 +26,7 @@ export function GameScreen({ state }: { state: GameState }) {
   const [section, setSection] = useState<SectionId>('map');
   const [rawSel, setSelection] = useState<Selection>(NO_SELECTION);
   const [orderMode, setOrderMode] = useState(false);
+  const [pendingAttack, setPendingAttack] = useState<{ regionId: string; enemy: CountryId } | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [layers, setLayers] = useState<LayerVisibility>(defaultVisibility);
   const [diploCountry, setDiploCountry] = useState<CountryId | null>(null);
@@ -57,6 +59,12 @@ export function GameScreen({ state }: { state: GameState }) {
 
   function onTapRegion(regionId: string, stateId?: string) {
     if (orderMode && orderIds.length) {
+      // Destino de un país con el que no hay guerra ni alianza: ataque directo, solo con confirmación (MIL-082 B).
+      const ctrl = state.regions[regionId].controller;
+      if (ctrl !== me && !atWar(state, me, ctrl) && !sameSide(state, me, ctrl)) {
+        setPendingAttack({ regionId, enemy: ctrl });
+        return;
+      }
       controller.actBatch(
         orderIds.map((id) => ({ type: 'move' as const, unitId: id, target: regionId })),
         (n) => `${n} ${n > 1 ? 'batallones' : 'batallón'} en marcha hacia ${REGIONS[regionId].name}.`,
@@ -92,9 +100,19 @@ export function GameScreen({ state }: { state: GameState }) {
             onTapCrossing={(crossingId) => select({ kind: 'crossing', crossingId })}
             onTapFacility={(facilityId) => select({ kind: 'facility', facilityId })}
             onTapArmy={(country) => select({ kind: 'country', country })}
+            onTapBattle={(battleId) => select({ kind: 'battle', battleId })}
             onTapEmpty={() => { setOrderMode(false); setSelection(NO_SELECTION); }} />
 
-          {orderMode && (
+          {pendingAttack && (
+            <AttackConfirm enemy={countryName(pendingAttack.enemy)} region={REGIONS[pendingAttack.regionId].name}
+              onCancel={() => { setPendingAttack(null); setOrderMode(false); }}
+              onConfirm={() => {
+                controller.act({ type: 'directAttack', unitIds: orderIds, target: pendingAttack.regionId });
+                setPendingAttack(null); setOrderMode(false);
+              }} />
+          )}
+
+          {orderMode && !pendingAttack && (
             <div className="order-banner" role="status">
               <span>Toca la región de destino · {orderIds.length} {orderIds.length > 1 ? 'batallones' : 'batallón'}</span>
               <button type="button" className="small" onClick={() => setOrderMode(false)}>Cancelar</button>
@@ -134,7 +152,7 @@ export function GameScreen({ state }: { state: GameState }) {
                 <ArmyPanel state={state} onFocusUnit={(id) => {
                   const u = state.units[id];
                   if (u) select({ kind: 'units', regionId: u.regionId, owner: me, unitIds: [id] });
-                }} />
+                }} onOpenBattle={(battleId) => select({ kind: 'battle', battleId })} />
               )}
               {section === 'stats' && <StatsPanel state={state} onPick={(c) => select({ kind: 'country', country: c })} />}
               {(section === 'government' || section === 'research' || section === 'espionage') && <FuturePanel section={section} />}
@@ -157,6 +175,25 @@ export function GameScreen({ state }: { state: GameState }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Confirmación del ataque directo. Aparece bajo el dedo que tocó el mapa: sus
+ * botones no responden durante 400 ms para que el «clic» de ese mismo toque no
+ * confirme (ni cancele) el ataque sin querer.
+ */
+function AttackConfirm({ enemy, region, onCancel, onConfirm }: { enemy: string; region: string; onCancel: () => void; onConfirm: () => void }) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setArmed(true), 400); return () => clearTimeout(t); }, []);
+  return (
+    <div className="attack-confirm" role="alertdialog" aria-label="Confirmar ataque directo">
+      <p><strong>¿Atacar {enemy} sin declarar la guerra?</strong> Tus batallones marcharán hacia {region}. Empieza una guerra; el resto de países lo castigará en sus relaciones y tu estabilidad baja.</p>
+      <div className="ac-actions">
+        <button type="button" disabled={!armed} onClick={onCancel}>Cancelar</button>
+        <button type="button" className="danger" data-action="confirm-attack" disabled={!armed} onClick={onConfirm}>Atacar</button>
+      </div>
     </div>
   );
 }

@@ -1,12 +1,12 @@
 # Matriz MIL-001 a MIL-171
 
-Estado de cada decisión tras la **Fase 1** (rama `feature/mil-001-batallones`). Los resúmenes proceden del documento de entrega; donde el traspaso no incluye el texto literal se indica **A cotejar** en lugar de suponerlo.
+Estado de cada decisión tras la **Fase 2** (rama `feature/mil-002-combate`), con las decisiones nuevas F2-001 A (sin bonificación defensiva) y F2-002 A (sin moral ni organización). Los resúmenes proceden del documento de entrega; donde el traspaso no incluye el texto literal se indica **A cotejar**.
 
 Estados: **Cumple** · **Parcial** · **Conflicto** (el código contradice la decisión) · **No implementado** · **Planificado** · **Proceso** · **A confirmar** (requiere decisión del usuario) · **A cotejar** (falta el texto literal de la decisión).
 
 Fases: F0 auditoría · F1 batallones e inventario · F2 combate terrestre · F3 industria y economía militar · F4 aviación · F5 armada · F6 defensa aérea · F7 misiles y nuclear · F8 diplomacia militar · F9 investigación y modernización · F10 avisos y ampliación. Ver `PLAN.md`.
 
-Resumen: No implementado: 76 · Cumple: 50 · Parcial: 31 · A cotejar: 8 · Proceso: 3 · Conflicto: 1 · A confirmar: 1 · Planificado: 1
+Resumen: No implementado: 72 · Cumple: 67 · Parcial: 22 · A cotejar: 7 · Proceso: 3
 
 | MIL | Opción | Decisión (resumen) | Fase | Estado | Dónde / nota |
 |---|---|---|---|---|---|
@@ -41,16 +41,16 @@ Resumen: No implementado: 76 · Cumple: 50 · Parcial: 31 · A cotejar: 8 · Pro
 | 029 | B | Patrón universal con modelos nacionales | F1 | Cumple | Plantilla universal; modelos nacionales (provisionales) |
 | 030 | B | Reclutar varios batallones a la vez | F1 | Cumple | Reclutar 1–5 por orden |
 | 031 | B | Agrupación visual de batallones | F1 | Cumple | Atlas: pilas por región y agrupación por país (`MapView.tsx`, `scale.ts`) |
-| 032 | A | Sin indicador de preparación 0–100 | F1/F2 | Parcial | Barras retiradas de la interfaz; `org` sigue en el combate hasta F2 |
+| 032 | A | Sin indicador de preparación 0–100 | F1/F2 | Cumple | F1 retiró la interfaz; F2 eliminó `org`/`morale` del motor (F2-002 A) |
 | 033 | B | Movimiento con tiempo | F1 | Cumple | `etaHours`: «llega en …» en la ficha |
 | 034 | B | Órdenes conjuntas | F1 | Cumple | Multiselección → «Mover (n)» (`ContextPanel.tsx`) |
-| 035 | B | Combustible y munición | F2 | No implementado | — |
-| 036 | B | Mantenimiento de equipo | F2 | Parcial | Solo abastecimiento general |
-| 037 | B | Bajas humanas y materiales separadas | F2 | No implementado | Solo bajas de efectivos |
+| 035 | B | Combustible y munición | F2 | Cumple | Combustible y munición 0–1 por batallón (`combat.ts`); consumo y escasez provisionales |
+| 036 | B | Mantenimiento de equipo | F2 | Cumple | Reparación diaria limitada por presupuesto; mantenimiento en la potencia |
+| 037 | B | Bajas humanas y materiales separadas | F2 | Cumple | Bajas humanas y vehículos dañados/destruidos por separado |
 | 038 | B | Reposición automática pausable | F1 | Cumple | Efectivos (pagados) y equipo desde la reserva; pausable |
-| 039 | A | Experiencia idéntica (sin veteranía) | F1 | Cumple | No hay experiencia; la moral se revisa en F2 |
-| 040 | B | Combate por intervalos | F2 | Parcial | Combate horario (`hourlyCombat`) |
-| 041 | B | Retirada automática por pérdidas graves y manual | F2 | Parcial | Retirada automática por `org` ≤ 8, no por pérdidas; sin orden manual |
+| 039 | A | Experiencia idéntica (sin veteranía) | F1 | Cumple | Sin experiencia ni moral en el motor |
+| 040 | B | Combate por intervalos | F2 | Cumple | Intervalos de 1 hora (`hourlyCombat`) |
+| 041 | B | Retirada automática por pérdidas graves y manual | F2 | Cumple | Automática por pérdidas (40 % efectivos o 60 % vehículos, provisional) y manual |
 | 042 | B | Instalaciones antiaéreas por estado | F6 | No implementado | Capa «bases» prevista y vacía |
 | 043 | A | Cinco niveles acumulativos I–V | F6 | No implementado | — |
 | 044 | B | Cobertura circular | F6 | No implementado | — |
@@ -85,26 +85,26 @@ Resumen: No implementado: 76 · Cumple: 50 · Parcial: 31 · A cotejar: 8 · Pro
 | 073 | B | Salarios/mantenimiento/operaciones separados de compras | F3 | Parcial | Un solo presupuesto cubre mantenimiento; sin compras |
 | 074 | B | Árbol de investigación (dinero y tiempo) | F9 | No implementado | Sección «Investigación» bloqueada |
 | 075 | A* | Bonificaciones generales + sustitución automática (excepción ratificada) | F9 | No implementado | Equivalencias y reglas: PENDIENTE DE DATO |
-| 076 | B | Estadísticas simples por modelo | F1 | Parcial | Fuego/Protección/Movilidad **provisionales**; sin efecto en combate hasta F2 |
-| 077 | B | Fuerza efectiva multivariable | F2 | Parcial | `unitPower`: efectivos, calidad, org, moral; sin equipo/tecnología/mantenimiento |
-| 078 | B | Deterioro gradual por presupuesto | F2 | Parcial | `supplyRatio` baja org y causa desgaste |
+| 076 | B | Estadísticas simples por modelo | F1 | Parcial | Fuego y protección intervienen en combate; modelos y cifras **provisionales** |
+| 077 | B | Fuerza efectiva multivariable | F2 | Parcial | Efectivos, equipo operativo, estadísticas, mantenimiento y suministros; **tecnología uniforme (1,0) hasta F9** |
+| 078 | B | Deterioro gradual por presupuesto | F2 | Cumple | Mantenimiento: potencia × (0,6 + 0,4 × abastecimiento); desgaste si < 60 % |
 | 079 | B | Precios por modelo | F3 | No implementado | — |
 | 080 | B | Restricciones comerciales | F3 | No implementado | — |
 | 081 | A* | Sustitución física gratuita por modelos superiores (ratificada) | F9 | No implementado | Equivalencias, condiciones y equipos dañados: PENDIENTE DE DATO |
-| 082 | B | Guerra por declaración o ataque directo | F2 | Parcial | Solo declaración: `canEnter` exige guerra |
-| 083 | B | Conquista con entrada de batallones y sin defensores | F2 | Cumple | `hourlyOccupation` (`war.ts`) |
-| 084 | B | Propietario de jure ≠ controlador de facto | F2 | Cumple | `RegionState.owner`/`controller` |
-| 085 | A | Ocupado funciona económicamente como propio | F2 | Conflicto | `OCCUPIED_EFFICIENCY = 0.5` (`territory.ts`) |
-| 086 | B | Anexión solo por paz/rendición | F2 | Cumple | `makePeace` «status quo» transfiere propiedad |
+| 082 | B | Guerra por declaración o ataque directo | F2 | Cumple | `directAttack` con confirmación; más coste diplomático (provisional) |
+| 083 | B | Conquista con entrada de batallones y sin defensores | F2 | Cumple | Ocupación por entrada y ausencia de defensores |
+| 084 | B | Propietario de jure ≠ controlador de facto | F2 | Cumple | `owner` / `controller` |
+| 085 | A | Ocupado funciona económicamente como propio | F2 | Cumple | Rendimiento económico completo para el controlador (`territory.ts`) |
+| 086 | B | Anexión solo por paz/rendición | F2 | Cumple | Solo por paz «status quo» |
 | 087 | B | Rendición multivariable | F2 | Parcial | `warAssessment` orienta a la IA; no hay rendición formal |
 | 088 | B | Paz negociable | F2 | Parcial | Solo paz blanca o status quo |
 | 089 | B | Alto el fuego | F8 | No implementado | — |
 | 090 | B | Guerras multinacionales | F8 | Parcial | `joinWar` mediante apoyo militar |
 | 091 | B | Objetivos conjuntos | F8 | No implementado | — |
-| 092 | B | IA autónoma | F2 | Parcial | `ai.ts` decide economía, reclutamiento, ejército, guerra y paz |
-| 093 | B | Decisión estratégica de la IA | F2 | Parcial | — |
-| 094 | B | Ofensivas de la IA | F2 | Parcial | Ataca la región objetivo con fuerza suficiente |
-| 095 | B | Defensa de la IA | F2 | Parcial | Refuerza la capital y regiones amenazadas |
+| 092 | B | IA autónoma | F2 | Parcial | IA con las mismas reglas; aún no usa ataque directo ni retirada manual |
+| 093 | B | Decisión estratégica de la IA | F2 | Parcial | Sin cambios en F2 |
+| 094 | B | Ofensivas de la IA | F2 | Parcial | Sin cambios en F2 |
+| 095 | B | Defensa de la IA | F2 | Parcial | Sin cambios en F2 |
 | 096 | B | Bombardeos e interceptación de la IA | F4 | No implementado | — |
 | 097 | B | Marina de la IA | F5 | No implementado | — |
 | 098 | B | Economía militar de la IA | F3 | Parcial | Presupuesto y reclutamiento |
@@ -141,16 +141,16 @@ Resumen: No implementado: 76 · Cumple: 50 · Parcial: 31 · A cotejar: 8 · Pro
 | 129 | B | Control nacional de fuerzas | F8 | Cumple | Cada país controla solo sus batallones |
 | 130 | B | Decisión aliada estratégica | F8 | No implementado | — |
 | 131 | A | Una única coalición mundial formal | F8 | No implementado | — |
-| 132 | B | Combate por intervalos | F2 | Parcial | Intervalo horario |
-| 133 | A | El terreno no modifica el combate | F2 | Cumple | Sin terreno en combate; ver nota sobre `DEFENDER_BONUS` |
-| 134 | A | Sin fortificaciones terrestres | F2 | A confirmar | `DEFENDER_BONUS = 1.3` al controlador: no es terreno ni fortificación, pero requiere decisión |
-| 135 | B | Objetivos automáticos | F2 | Parcial | Daño repartido según efectivos |
-| 136 | B | Cooperación sin fusión | F2 | Cumple | Cada batallón combate por separado |
-| 137 | B | Vehículos dañados y reparables | F2 | No implementado | — |
-| 138 | B | Escasez penaliza | F2 | Parcial | `supplyRatio` |
-| 139 | B | Informe de bajas y consumos | F2 | Parcial | Registro al terminar la batalla |
-| 140 | B | Indicadores discretos | F2 | A cotejar | Significado exacto a confirmar |
-| 141 | B | Panel de batalla | F2 | No implementado | Capa de batallas sin panel |
+| 132 | B | Combate por intervalos | F2 | Cumple | Intervalos de 1 hora |
+| 133 | A | El terreno no modifica el combate | F2 | Cumple | Sin terreno en el combate (prueba) |
+| 134 | A | Sin fortificaciones terrestres | F2 | Cumple | `DEFENDER_BONUS` eliminado (F2-001 A); prueba de igualdad |
+| 135 | B | Objetivos automáticos | F2 | Cumple | Reparto automático del daño según efectivos enemigos |
+| 136 | B | Cooperación sin fusión | F2 | Cumple | Cada batallón conserva identidad, equipo y pérdidas |
+| 137 | B | Vehículos dañados y reparables | F2 | Cumple | Dañados ocupan su hueco y no combaten; reparación diaria |
+| 138 | B | Escasez penaliza | F2 | Cumple | Munición, combustible y presupuesto penalizan potencia y marcha |
+| 139 | B | Informe de bajas y consumos | F2 | Cumple | Informe: bajas, vehículos dañados/destruidos por tipo, consumos, evolución |
+| 140 | B | Indicadores discretos | F2 | Parcial | Interpretado como indicadores discretos de combate y suministros (marcador, 5 segmentos); texto literal a cotejar |
+| 141 | B | Panel de batalla | F2 | Cumple | Panel de batalla desde Atlas, la región o Ejército |
 | 142 | B | Agrupación en el mapa por zoom | F1 | Cumple | Atlas Continente/Nación/Región |
 | 143 | B | Ficha de batallón | F1 | Cumple | Efectivos, 5 categorías, infantería, tripulación, estado, marcha |
 | 144 | B | Vista ilustrada | F1 | Cumple | Siluetas genéricas propias (`Silhouette.tsx`) |
@@ -168,7 +168,7 @@ Resumen: No implementado: 76 · Cumple: 50 · Parcial: 31 · A cotejar: 8 · Pro
 | 156 | B | Autoguardado y guardado manual | F1 | Cumple | Mensual + al ocultar; 3 ranuras |
 | 157 | B | Varias partidas | F1 | Cumple | Ranuras 1–3 + autoguardado |
 | 158 | B | Cálculo por intervalos determinista respecto a la velocidad | F1 | Cumple | `stepHour`; prueba de reloj |
-| 159 | B | Todas las guerras simuladas | F2 | Cumple | Combate en todas las regiones cada hora |
+| 159 | B | Todas las guerras simuladas | F2 | Cumple | Todas las regiones cada hora |
 | 160 | B | Avisos relevantes | F10 | Parcial | Avisos y registro |
 | 161 | B | Navegación desde avisos | F10 | No implementado | — |
 | 162 | B | Desarrollo por fases | — | Cumple | `docs/mil/PLAN.md` |
@@ -176,7 +176,7 @@ Resumen: No implementado: 76 · Cumple: 50 · Parcial: 31 · A cotejar: 8 · Pro
 | 164 | B | Varios países de prueba | F1 | Cumple | Los 12 países tienen modelos y dotación de prueba |
 | 165 | B | Datos provisionales diferenciados | F1 | Cumple | Marcados «Provisional» en ficha e inventario |
 | 166 | B | Inspección, agrupación y movimiento | F1 | Cumple | Pruebas e2e |
-| 167 | B | Combate en Fase 2 | F2 | Planificado | — |
+| 167 | B | Combate en Fase 2 | F2 | Cumple | PR de Fase 2 |
 | 168 | B | Calidad visual en cada fase | — | Proceso | Capturas por PR |
 | 169 | B | Pruebas automatizadas + iPhone | — | Proceso | Unitarias, e2e emuladas; iPhone real lo valida el usuario |
 | 170 | B | Proteger Atlas | — | Proceso | Pruebas e2e de Atlas obligatorias en cada PR |

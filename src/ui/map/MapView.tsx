@@ -36,6 +36,8 @@ interface Props {
   onTapFacility: (facilityId: string) => void;
   /** Agrupación militar de un país (escala continental). */
   onTapArmy: (country: CountryId) => void;
+  /** Marcador de batalla (MIL Fase 2): abre su panel. */
+  onTapBattle: (battleId: string) => void;
   onTapEmpty: () => void;
 }
 
@@ -146,7 +148,7 @@ function placeLabels<T extends { box: Box }>(items: T[], obstacles: Box[], k: nu
   });
 }
 
-export function MapView({ state, selection, orderMode, layers, onToggleLayer, onTapRegion, onTapUnits, onTapCity, onTapCrossing, onTapFacility, onTapArmy, onTapEmpty }: Props) {
+export function MapView({ state, selection, orderMode, layers, onToggleLayer, onTapRegion, onTapUnits, onTapCity, onTapCrossing, onTapFacility, onTapArmy, onTapBattle, onTapEmpty }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [size, setSize] = useState({ w: 640, h: 360 });
   const [view, setView] = useState<View>(() => nationView(state.player, 360 / 640));
@@ -289,6 +291,7 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
     const target = document.elementFromPoint(e.clientX, e.clientY) as Element | null;
     const unitEl = target?.closest('[data-units]');
     const armyEl = target?.closest('[data-army]');
+    const battleEl = target?.closest('[data-battle]');
     const cityEl = target?.closest('[data-city]');
     const crossingEl = target?.closest('[data-crossing]');
     const facilityEl = target?.closest('[data-facility]');
@@ -299,6 +302,7 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
     // Al dar una orden de marcha solo cuentan las regiones (los iconos no son destinos).
     if (armyEl && !orderMode) onTapArmy(armyEl.getAttribute('data-army') as CountryId);
     else if (unitEl && !orderMode) onTapUnits(unitEl.getAttribute('data-units')!, unitEl.getAttribute('data-owner') as CountryId);
+    else if (battleEl && !orderMode) onTapBattle(battleEl.getAttribute('data-battle')!);
     else if (cityEl && !orderMode) onTapCity(cityEl.getAttribute('data-city')!);
     else if (crossingEl && !orderMode) onTapCrossing(crossingEl.getAttribute('data-crossing')!);
     else if (facilityEl && !orderMode) onTapFacility(facilityEl.getAttribute('data-facility')!);
@@ -659,7 +663,9 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
             const [x, y] = REGIONS[b.regionId].anchor;
             const s = 7 * k;
             return (
-              <g key={`b-${b.regionId}`} className="battle" transform={`translate(${x + 24 * k} ${y - 4 * k})`}>
+              <g key={`b-${b.regionId}`} className="battle" data-battle={b.id} pointerEvents="auto" aria-label={`Batalla de ${REGIONS[b.regionId].name}`}
+                transform={`translate(${x + 24 * k} ${y - 4 * k})`}>
+                <circle r={16 * k} className="hit" />
                 <circle r={s * 1.35} className="battle-dot" style={{ strokeWidth: 1 * k }} />
                 <path d={`M${-s * 0.6} ${-s * 0.6}L${s * 0.6} ${s * 0.6}M${s * 0.6} ${-s * 0.6}L${-s * 0.6} ${s * 0.6}`} style={{ strokeWidth: 1.6 * k }} />
               </g>

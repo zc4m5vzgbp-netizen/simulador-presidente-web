@@ -46,7 +46,7 @@ describe('Plantilla universal de batallón', () => {
 
 describe('Tripulación automática', () => {
   const unit = (men: number, equipment: Record<string, number>): Unit => ({
-    id: 'x', owner: 'ARG', name: 'x', men, org: 100, morale: 70, regionId: 'AR_BA', destination: null, path: [], progress: 0, status: 'idle', equipment, recruitPending: 0,
+    id: 'x', owner: 'ARG', name: 'x', men, regionId: 'AR_BA', destination: null, path: [], progress: 0, status: 'idle', equipment, damaged: {}, fuel: 1, ammo: 1, recruitPending: 0,
   });
   test('batallón completo: todo el equipo tripulado y el resto infantería', () => {
     const u = unit(1000, { 'ARG-T1': 20, 'ARG-B1': 30, 'ARG-A1': 8, 'ARG-D1': 40, 'ARG-V1': 20 });
@@ -152,14 +152,14 @@ describe('Movimiento con duración', () => {
   });
 });
 
-describe('Guardado v2 y migración', () => {
-  test('la versión actual es 2 y una partida nueva guarda y carga con su equipo intacto', async () => {
-    assert.equal(SAVE_VERSION, 2);
+describe('Guardado y migración (F1)', () => {
+  test('una partida nueva guarda y carga con su equipo intacto', async () => {
+    assert.equal(SAVE_VERSION, 3);
     const s = createNewGame('COL', 11);
     const st = new MemoryStorage();
     await saveGame(st, s, '1');
     const l = await loadGame(st, '1');
-    assert.equal(l.version, 2);
+    assert.equal(l.version, SAVE_VERSION);
     assert.deepEqual(l.units, s.units);
     assert.deepEqual(l.countries.COL.inventory, s.countries.COL.inventory);
   });
@@ -170,7 +170,7 @@ describe('Guardado v2 y migración', () => {
     await st.put(record);
     const a = await loadGame(st, record.slot);
     const b = await loadGame(st, record.slot);
-    assert.equal(a.version, 2);
+    assert.equal(a.version, SAVE_VERSION);
     assert.deepEqual(a, b, 'misma entrada, mismo resultado');
     // Se conservan efectivos, posiciones, guerras y economía; se añaden equipo e inventario.
     const raw = JSON.parse(record.data);

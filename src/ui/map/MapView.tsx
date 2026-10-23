@@ -502,6 +502,13 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
               <text y="0.3">{label}</text>
             </g>
           )}
+          {mode === 'moving' && (
+            // Progreso de la etapa en curso: crece mientras avanza el reloj (la marcha no parece detenida).
+            <g className="march-progress" transform={`translate(0 ${frame.bottom + 6})`} data-progress={units[0].progress.toFixed(3)}>
+              <rect x="-17" y="-3" width="34" height="6" rx="3" className="mp-track" />
+              <rect x="-17" y="-3" width={34 * Math.min(1, units[0].progress)} height="6" rx="3" className="mp-fill" />
+            </g>
+          )}
         </g>
       </g>
     );
@@ -642,7 +649,7 @@ export function MapView({ state, selection, orderMode, layers, onToggleLayer, on
           })}
           {show('units') && detail.units === 'region' && moving.map((u) => {
             const [x, y] = unitPos(u);
-            return tile(u.id, x, y, u.owner, [u], ' moving', { 'data-units': u.regionId }, selIds.includes(u.id), 'moving');
+            return tile(u.id, x, y, u.owner, [u], ' moving', { 'data-units': u.regionId, 'data-moving': u.id }, selIds.includes(u.id), 'moving');
           })}
           {show('units') && armies.map((a) => tile(`army-${a.c}`, a.x, a.y, a.c, a.units, '', { 'data-army': a.c }, selection.kind === 'country' && selection.country === a.c, 'army'))}
         </g>

@@ -14,7 +14,7 @@
 import type { CountryId, GameState, Unit } from './types';
 import { clamp, rand } from './core';
 import { COMBAT, REPAIR, SUPPLY } from '../data/military';
-import { activeByModel, modelOf, operationalVehicles, type EquipCategory } from './equipment';
+import { activeByModel, modelOf, type EquipCategory } from './equipment';
 import { sameSide } from './war';
 
 /** Mantenimiento: depende del abastecimiento presupuestario del país (MIL-078 B). */
@@ -33,8 +33,12 @@ export function fuelFactor(u: Unit): number {
 }
 
 /** Velocidad de marcha según el combustible: sin combustible se avanza a pie, más despacio. */
+export function speedForFuel(fuel: number): number {
+  return fuel >= SUPPLY.shortage ? 1 : SUPPLY.fuelSpeedFloor + (1 - SUPPLY.fuelSpeedFloor) * (fuel / SUPPLY.shortage);
+}
+
 export function marchSpeedFactor(u: Unit): number {
-  return u.fuel >= SUPPLY.shortage ? 1 : SUPPLY.fuelSpeedFloor + (1 - SUPPLY.fuelSpeedFloor) * (u.fuel / SUPPLY.shortage);
+  return speedForFuel(u.fuel);
 }
 
 export interface PowerBreakdown {
@@ -80,12 +84,15 @@ export function applyDamage(state: GameState, u: Unit, dmg: number): HitResult {
   res.men = Math.min(u.men, Math.round(dmg * (1 - shield)));
   u.men -= res.men;
 
-  if (operationalVehicles(u) > 0) {
+  // Solo los vehículos que COMBATEN (operativos y tripulados) quedan expuestos a impactos:
+  // los dañados ya están fuera de combate y los que no tienen tripulación no entran en acción.
+  if (activeByModel(u).length > 0) {
     const expected = dmg * COMBAT.vehicleHitsPerDamage;
     let hits = Math.floor(expected) + (rand(state) < expected - Math.floor(expected) ? 1 : 0);
     const lost = state.countries[u.owner].equipmentLost;
     while (hits-- > 0) {
-      const pool = Object.entries(u.equipment).filter(([, q]) => q > 0).sort(([a], [b]) => a.localeCompare(b));
+      // Se recalcula tras cada impacto: un vehículo dañado o destruido deja de estar expuesto.
+      const pool = activeByModel(u).map((a) => [a.model.id, a.active] as const).sort(([a], [b]) => a.localeCompare(b));
       const total = pool.reduce((s, [, q]) => s + q, 0);
       if (!total) break;
       let pick = rand(state) * total, id = pool[0][0];
@@ -124,10 +131,12 @@ function repairBag(bag: Record<string, number>, into: Record<string, number>, ra
 }
 
 /**
- * Cada día, fuera de combate: reabastecimiento de combustible y munición (igual
- * en cualquier territorio) y reparación de vehículos dañados, ambos limitados
- * por el presupuesto militar. La reparación solo se hace en territorio propio o
- * aliado. La reserva nacional dañada también se repara.
+ * Cada día, fuera de combate: reabastecimiento de combustible y munición y
+ * reparación de vehículos dañados, ambos limitados por el presupuesto militar.
+ * El reabastecimiento es igual en cualquier territorio: simplificación
+ * provisional, sin líneas de suministro todavía (ver SUPPLY.dailyResupply).
+ * La reparación solo se hace en territorio propio o aliado. La reserva nacional
+ * dañada también se repara.
  */
 export function dailySupplyAndRepair(state: GameState): void {
   for (const u of Object.values(state.units)) {

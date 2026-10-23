@@ -7,6 +7,7 @@ import type { CountryId, GameState } from '../engine/types';
 import { formatDate } from '../engine/core';
 import { REGIONS, countryName } from '../engine/world';
 import { atWar, sameSide } from '../engine/war';
+import { arrivalNote } from './arrival';
 import { controller } from './controller';
 import { MapView } from './map/MapView';
 import { defaultVisibility, type LayerVisibility } from './map/layers';
@@ -65,9 +66,13 @@ export function GameScreen({ state }: { state: GameState }) {
         setPendingAttack({ regionId, enemy: ctrl });
         return;
       }
+      const ids = orderIds;
       controller.actBatch(
-        orderIds.map((id) => ({ type: 'move' as const, unitId: id, target: regionId })),
-        (n) => `${n} ${n > 1 ? 'batallones' : 'batallón'} en marcha hacia ${REGIONS[regionId].name}.`,
+        ids.map((id) => ({ type: 'move' as const, unitId: id, target: regionId })),
+        (n) => {
+          const note = arrivalNote(state, ids);
+          return `${n} ${n > 1 ? 'batallones' : 'batallón'} en marcha hacia ${REGIONS[regionId].name}${note ? ` · ${note}` : ''}.`;
+        },
       );
       setOrderMode(false);
       return;
@@ -107,7 +112,9 @@ export function GameScreen({ state }: { state: GameState }) {
             <AttackConfirm enemy={countryName(pendingAttack.enemy)} region={REGIONS[pendingAttack.regionId].name}
               onCancel={() => { setPendingAttack(null); setOrderMode(false); }}
               onConfirm={() => {
-                controller.act({ type: 'directAttack', unitIds: orderIds, target: pendingAttack.regionId });
+                const res = controller.act({ type: 'directAttack', unitIds: orderIds, target: pendingAttack.regionId });
+                const note = res.ok ? arrivalNote(state, orderIds) : '';
+                if (note) controller.toast(`En marcha: ${note}.`);
                 setPendingAttack(null); setOrderMode(false);
               }} />
           )}

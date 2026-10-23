@@ -168,8 +168,10 @@ export const SUPPLY = {
   fuelSpeedFloor: 0.5,
   /**
    * Reabastecimiento diario fuera de combate (fracción de carga), × abastecimiento
-   * presupuestario. IGUAL en cualquier territorio: depender del territorio
-   * favorecería al controlador de la región (F2-001 A).
+   * presupuestario. SIMPLIFICACIÓN PROVISIONAL: igual en cualquier territorio
+   * porque la Fase 2 no modela líneas de suministro (sin logística individual,
+   * MIL-035 simplificado). F2-001 A no prohíbe diferencias logísticas; si se
+   * aprueba una regla de logística por territorio, se sustituye aquí.
    */
   dailyResupply: 0.5,
 };

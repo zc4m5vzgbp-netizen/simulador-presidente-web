@@ -13,7 +13,7 @@ Rama `feature/mil-002-combate` (sobre la Fase 1, PR #9). Borrador: no fusionar n
 2. **Potencia** = (infantería × 0,01 + Σ vehículos operativos **tripulados** × potencia de fuego del modelo × peso de su categoría × factor de combustible) × factor de munición × mantenimiento × tecnología. No intervienen terreno, fortificaciones, bonificación defensiva, moral, organización, experiencia ni la calidad del país.
 3. **Pérdidas separadas**: bajas humanas (reducidas por el blindaje de los vehículos) e impactos sobre vehículos, que quedan **dañados** (ocupan su hueco, no combaten) o **destruidos** (pasan a «perdidos» del país).
 4. **Reparación** diaria fuera de combate, en territorio propio o aliado, limitada por el presupuesto (no repara por debajo del 30 % de abastecimiento). La reserva nacional dañada también se repara.
-5. **Combustible y munición** (carga 0–1 por batallón): el combate consume ambos; marchar consume combustible. Por debajo del 20 %: menos potencia y, sin combustible, marcha a pie (más lenta). Reabastecimiento diario fuera de combate, **igual en cualquier territorio** (hacerlo depender del territorio favorecería al controlador, contra F2-001 A).
+5. **Combustible y munición** (carga 0–1 por batallón): el combate consume ambos; marchar consume combustible. Por debajo del 20 %: menos potencia y, sin combustible, marcha a pie (más lenta). Reabastecimiento diario fuera de combate, igual en cualquier territorio: **simplificación provisional** porque esta fase no modela líneas de suministro (MIL-035 simplificado, sin logística individual). F2-001 A no prohíbe diferencias logísticas; si se aprueba una regla de logística por territorio, se cambia en `SUPPLY.dailyResupply`.
 6. **Retirada automática** por pérdidas graves (≥ 40 % de los efectivos o ≥ 60 % de los vehículos con los que entró en la batalla) y **retirada manual** (botón «Retirar» en la ficha y en el panel de batalla). Rodeado: la automática acaba en rendición; la manual se rechaza.
 7. **Ocupación**: propietario legal y controlador separados; el territorio ocupado **rinde al 100 %** para quien lo controla (se eliminó el 50 %).
 8. **Ataque directo**: dar orden de marcha hacia un país en paz pide confirmación y, si se acepta, empieza la guerra («Ataque de X contra Y») con más coste diplomático que una declaración (−10 adicional con todos los demás países y −4 de estabilidad propia, provisionales). Se respeta la tregua.
@@ -57,6 +57,17 @@ La ranura no se reescribe al cargar. **Reversión**: una versión anterior no le
 - Datos: `src/data/military.ts`.
 - Interfaz: `src/ui/panels/BattleCard.tsx` (nuevo), `UnitCard.tsx`, `ArmyPanel.tsx`, `src/ui/layout/ContextPanel.tsx`, `src/ui/GameScreen.tsx`, `src/ui/map/MapView.tsx` (marcador tocable), `selection.ts`, `icons.tsx`, `styles.css`.
 - Pruebas: `tests/combat.test.ts`, `tests/e2e/combat.spec.ts`, `tests/fixtures/save-v2-fase1-guerra.json` (nuevos); actualizadas `tests/military.test.ts`.
+
+## Revisión tras la prueba del usuario (incidencia F2-INC-01)
+
+Detalle completo en `INCIDENCIAS.md` y estrategia de pruebas en `REGRESION.md`.
+
+- **Causa del «congelamiento»:** el reloj avanzaba, pero no se veía: la fecha no mostraba la hora (75 s sin cambios a ×4, 5 min a ×1) y la marcha a Uruguay dura ≈ 7 min reales a ×4 con un avance imperceptible en el mapa; mis instrucciones de prueba no lo advertían. Además, el reloj dependía solo de `requestAnimationFrame` y un error del motor lo habría detenido en silencio.
+- **Correcciones:** hora visible; barra de progreso de la marcha en Atlas; aviso de llegada en tiempo de juego y real; reloj con temporizador de respaldo y error visible; vista previa con la compilación prevista (`build:artifact`) y herramienta de verificación ×30 solo en la vista previa.
+- **Impactos sobre vehículos:** ahora solo alcanzan a vehículos operativos **y tripulados** (los que combaten), recalculados tras cada impacto; los dañados y los que no tienen tripulación no quedan expuestos. Prueba incluida.
+- **ETA:** simula hora a hora el avance con el combustible, su consumo y el reabastecimiento diario, con las mismas reglas que el movimiento real. Prueba: coincide exactamente con la llegada real con combustible lleno, escaso y casi vacío.
+- **Bolivia:** no reproducible en 40 repeticiones; espera de estabilidad añadida (F2-INC-02).
+- **Regresión integral:** `tests/e2e/regression.spec.ts`, incluido el reloj en tiempo real sin acelerar y el recorrido completo Argentina → Uruguay; también ejecutada contra la copia descargada de la vista previa publicada.
 
 ## Problema encontrado durante la fase
 

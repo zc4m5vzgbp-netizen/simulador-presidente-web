@@ -23,6 +23,26 @@ export async function regionPoint(page: Page, regionId: string): Promise<{ x: nu
   }
 }
 
+/**
+ * Espera a que el mapa deje de cambiar (tamaño y encuadre) durante 4 fotogramas
+ * seguidos: medir posiciones mientras un panel se abre o el encuadre se aplica
+ * hace que el toque caiga en otro sitio.
+ */
+export async function waitMapStable(page: Page) {
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    let last = '', stable = 0;
+    const tick = () => {
+      const svg = document.querySelector('svg.map');
+      const r = svg?.getBoundingClientRect();
+      const key = r ? `${r.width}|${r.height}|${svg!.getAttribute('viewBox')}` : '';
+      stable = key === last ? stable + 1 : 0;
+      last = key;
+      if (stable >= 4) resolve(); else requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }));
+}
+
 async function regionPointOnce(page: Page, regionId: string) {
   // Esperar a que el mapa deje de cambiar de tamaño (paneles que se abren o cierran).
   await page.evaluate(() => new Promise<void>((resolve) => {

@@ -71,7 +71,7 @@ export function TopBar({ state, onOptions, optionsOpen, onInbox }: { state: Game
       <div className="tb-date-card">
         <Icon name="calendar" size={20} className="tb-card-icon" />
         <div className="tb-card-text">
-          <span className="tb-date" data-testid="date">{formatDate(state.hour)}</span>
+          <span className="tb-date" data-testid="date">{formatDate(state.hour)}<span className="tb-hour" data-testid="clock-hour">{String(state.hour % 24).padStart(2, '0')}:00</span></span>
           <span className="tb-weekday">{WEEKDAYS[dateOf(state.hour).getUTCDay()]} · {String(state.hour % 24).padStart(2, '0')}:00</span>
         </div>
       </div>
@@ -86,6 +86,7 @@ export function TopBar({ state, onOptions, optionsOpen, onInbox }: { state: Game
           ))}
         </div>
         <span className="tb-mult" aria-label="Multiplicador de tiempo">x{SPEEDS[speed].multiplier}</span>
+        {controller.timeScale > 1 && <span className="tb-verify" data-testid="verify-badge">VERIFICACIÓN ×{controller.timeScale}</span>}
         <button type="button" className="tb-btn" aria-label={`Propuestas recibidas: ${inbox}`} data-action="inbox" onClick={onInbox}>
           <Icon name="mail" size={22} />
           {inbox > 0 && <span className="badge">{inbox}</span>}

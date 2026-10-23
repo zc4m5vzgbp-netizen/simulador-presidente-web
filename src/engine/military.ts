@@ -4,7 +4,7 @@ import { fail, log, newId, ok, type ActionResult } from './core';
 import { REGIONS, distance, countryName } from './world';
 import { atWar, declareWar, inTruce, sameSide } from './war';
 import { BATTALION_TEMPLATE, RECRUITMENT, fillFromInventory, loseAllEquipment, returnToInventory } from './equipment';
-import { combatPower, marchSpeedFactor } from './combat';
+import { combatPower, marchSpeedFactor, speedForFuel } from './combat';
 import { SUPPLY } from '../data/military';
 
 /** Máximo de efectivos por batallón (plantilla universal). */
@@ -327,15 +327,25 @@ export function dailyReplenishment(state: GameState): void {
   }
 }
 
-/** Horas que faltan para que el batallón llegue a su destino al ritmo actual (MIL-033). */
+/**
+ * Horas que faltan para que el batallón llegue a su destino (MIL-033).
+ * Reproduce hora a hora las mismas reglas que el movimiento real: avance según
+ * el combustible, consumo de combustible al marchar y reabastecimiento diario,
+ * incluida la pérdida del avance sobrante al cambiar de etapa. Así la estimación
+ * coincide con la llegada real si nada interrumpe la marcha (combate, cambios de
+ * control o de presupuesto).
+ */
 export function etaHours(state: GameState, u: Unit): number {
   if (!u.path.length) return 0;
-  const speed = marchSpeedFactor(u);
-  let from = u.regionId, total = 0;
-  u.path.forEach((to, i) => {
-    const h = travelHours(state, u.owner, from, to) / speed;
-    total += i === 0 ? h * (1 - u.progress) : h;
-    from = to;
-  });
-  return total;
+  const budget = Math.max(0, Math.min(1, state.countries[u.owner].supplyRatio));
+  let fuel = u.fuel, progress = u.progress, hour = state.hour, from = u.regionId, leg = 0, n = 0;
+  while (leg < u.path.length && n < 24 * 365) {
+    hour++; n++;
+    const to = u.path[leg];
+    progress += speedForFuel(fuel) / travelHours(state, u.owner, from, to);
+    fuel = Math.max(0, fuel - SUPPLY.fuelPerMarchHour);
+    if (progress >= 1) { from = to; leg++; progress = 0; }
+    if (hour % 24 === 0 && u.status !== 'combat') fuel = Math.min(1, fuel + SUPPLY.dailyResupply * budget);
+  }
+  return n;
 }

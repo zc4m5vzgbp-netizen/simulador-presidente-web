@@ -38,7 +38,8 @@ const result = await build({
   jsxFactory: 'React.createElement',
   jsxFragment: 'React.Fragment',
   inject: [root + 'scripts/react-shim.js'],
-  define: { 'process.env.NODE_ENV': '"production"' },
+  // __PREVIEW__: herramienta de verificación (reloj acelerado) SOLO en la vista previa privada.
+  define: { 'process.env.NODE_ENV': '"production"', __PREVIEW__: mode === 'artifact' ? 'true' : 'false' },
   // React va incluido en ambos modos: es la misma compilación que pasa las pruebas.
   // (globalsPlugin permite cargar React desde un CDN si algún día se prefiere.)
   plugins: process.env.REACT_FROM_CDN ? [globalsPlugin] : [],

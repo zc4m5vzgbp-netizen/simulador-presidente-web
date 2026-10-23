@@ -7,7 +7,7 @@ import { advanceDays, advanceHours, stepHour } from '../src/engine/time';
 import { perform } from '../src/engine/actions';
 import { etaHours, unitsIn, unitsOf } from '../src/engine/military';
 import { atWar, hourlyCombat } from '../src/engine/war';
-import { combatPower, dailySupplyAndRepair, powerBreakdown } from '../src/engine/combat';
+import { applyDamage, combatPower, dailySupplyAndRepair, marchSpeedFactor, powerBreakdown } from '../src/engine/combat';
 import { equipmentLedger, initialEquipment, initialInventory } from '../src/engine/equipment';
 import { getRelation } from '../src/engine/diplomacy';
 import { COMBAT, SUPPLY } from '../src/data/military';
@@ -155,10 +155,12 @@ describe('Suministros y escasez', () => {
     assert.ok(Math.abs(combatPower(s, u) - full.total * SUPPLY.ammoFloor) < 1e-9);
     u.ammo = 1;
     perform(s, 'ARG', { type: 'move', unitId: u.id, target: 'AR_PA' });
+    s.countries.ARG.supplyRatio = 0; // sin reabastecimiento durante la marcha
     const eta = etaHours(s, u);
     u.fuel = 0;
     assert.ok(powerBreakdown(s, u).total < full.total);
-    assert.ok(etaHours(s, u) > eta * 1.9);
+    assert.equal(marchSpeedFactor(u), SUPPLY.fuelSpeedFloor, 'sin combustible se marcha a pie, a la mitad de velocidad');
+    assert.ok(etaHours(s, u) > eta, 'y la llegada se retrasa');
   });
   test('un presupuesto militar insuficiente reduce la potencia (mantenimiento)', () => {
     const s = createNewGame('ARG', 2);
@@ -339,5 +341,43 @@ describe('Guardado v3 y migraciones', () => {
       for (const id of Object.keys(expect)) if (!expect[id]) delete expect[id];
       assert.deepEqual(equipmentLedger(s, c), expect, c);
     }
+  });
+});
+
+describe('Revisión F2 (incidencia F2-INC-01 y observaciones)', () => {
+  test('ETA exacta: coincide hora a hora con la llegada real, también con poco combustible', () => {
+    // Presupuesto militar real (política): el abastecimiento lo calcula la economía cada día.
+    for (const [fuel, militaryBudget] of [[1, undefined], [0.25, 0.2], [0.05, 0.2]] as const) {
+      const s = calm(createNewGame('ARG', 31));
+      if (militaryBudget !== undefined) perform(s, 'ARG', { type: 'setPolicy', patch: { militaryBudget } });
+      advanceHours(s, 24); // el cierre diario aplica el nuevo presupuesto al abastecimiento
+      const u = unitsOf(s, 'ARG').find((x) => x.regionId === 'AR_BA')!;
+      u.fuel = fuel;
+      assert.ok(perform(s, 'ARG', { type: 'move', unitId: u.id, target: 'AR_PA' }).ok);
+      const eta = etaHours(s, u);
+      let h = 0;
+      while (s.units[u.id].regionId !== 'AR_PA' && h < 24 * 60) { stepHour(s); h++; }
+      assert.equal(h, eta, `combustible ${fuel}, presupuesto ${militaryBudget ?? 'inicial'}`);
+    }
+  });
+  test('la ETA tiene en cuenta que el combustible se agota durante la marcha', () => {
+    const s = calm(createNewGame('ARG', 31));
+    const u = unitsOf(s, 'ARG').find((x) => x.regionId === 'AR_BA')!;
+    perform(s, 'ARG', { type: 'move', unitId: u.id, target: 'AR_PA' });
+    s.countries.ARG.supplyRatio = 0;
+    const full = etaHours(s, u);
+    u.fuel = 0.21; // empieza justo por encima de la escasez y se agota por el camino
+    assert.ok(etaHours(s, u) > full);
+  });
+  test('los impactos solo alcanzan a vehículos operativos y tripulados', () => {
+    const s = createNewGame('CHL', 3);
+    const u = unitsOf(s, 'CHL')[0];
+    u.men = 3; // sin tripulación para ningún vehículo: todo el equipo está inactivo
+    const before = JSON.stringify([u.equipment, u.damaged]);
+    for (let i = 0; i < 50; i++) { u.men = 3; applyDamage(s, u, 30); }
+    assert.equal(JSON.stringify([u.equipment, u.damaged]), before, 'el equipo sin tripulación no recibe impactos');
+    const v = unitsOf(s, 'CHL')[1];
+    for (let i = 0; i < 40; i++) { v.men = 1000; applyDamage(s, v, 30); }
+    assert.ok(Object.keys(v.damaged).length + Object.keys(s.countries.CHL.equipmentLost).length > 0, 'el equipo tripulado sí');
   });
 });

@@ -26,12 +26,9 @@ export function SupplyPips({ label, value, testId }: { label: string; value: num
   );
 }
 
+import { formatGameDuration } from '../arrival';
 /** Duración en tiempo de juego: «2 d 5 h». */
-export function formatDuration(hours: number): string {
-  const h = Math.max(1, Math.ceil(hours));
-  const d = Math.floor(h / 24), r = h % 24;
-  return d ? `${d} d${r ? ` ${r} h` : ''}` : `${r} h`;
-}
+export const formatDuration = formatGameDuration;
 
 export interface EquipRow { kind: EquipCategory | 'infantry'; total: number; active: number; damaged?: number; max: number }
 

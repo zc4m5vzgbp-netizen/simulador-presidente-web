@@ -837,3 +837,13 @@ button.danger { background: var(--bad); border-color: var(--bad); color: #fff; f
 .ac-actions button { min-height: 40px; padding: 0 16px; }
 .chart-legend { display: inline-flex; flex-wrap: wrap; gap: 2px 10px; margin-left: 10px; }
 .chart-legend i { display: inline-block; width: 10px; height: 3px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+/* Avance visible del tiempo y de las marchas (incidencia F2-INC-01). */
+.tb-hour { color: var(--muted); font-weight: 600; }
+.march-progress .mp-track { fill: rgba(5, 10, 16, 0.75); stroke: rgba(255, 255, 255, 0.35); stroke-width: 0.6; }
+.march-progress .mp-fill { fill: var(--gold); }
+.tb-verify { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.06em; color: #17110a; background: var(--warn); padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+/* Hora debajo de la fecha: no ensancha la barra superior (iPhone SE). */
+.tb-date { display: inline-grid; line-height: 1.05; text-align: center; }
+.tb-hour { font-size: 0.72em; font-weight: 600; letter-spacing: 0.02em; }
+/* Distintivo de verificación: sobre el mapa, sin quitar ancho a la barra superior. */
+.tb-verify { position: fixed; top: calc(var(--top-h) + 6px); left: 72px; z-index: 30; pointer-events: none; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4); }
